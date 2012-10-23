@@ -4,12 +4,12 @@ openiked
 Internet Key Exchange version 2 (IKEv2) daemon - portable version of
 OpenBSD iked.
 
-This code is from the OpenBSD operating system and included in the
+This code is from the OpenBSD operating system and is included in the
 releases since version 4.8.  You can find the source code in OpenBSD's
 CVS repository, see:
 
 * http://www.openbsd.org/cgi-bin/cvsweb/src/sbin/iked/
-* http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/iked/
+* http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/ikectl/
 
 Installation
 ------------
