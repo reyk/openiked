@@ -1,11 +1,12 @@
 openiked
 ========
 
-Internet Key Exchange version 2 (IKEv2) daemon - portable version of OpenBSD iked.
+Internet Key Exchange version 2 (IKEv2) daemon - portable version of
+OpenBSD iked.
 
-This IKEv2 implementation is part of the OpenBSD operating system and
-is part of the OpenBSD releases since version 4.8.  You can find the
-source code in OpenBSD's CVS repository, see:
+This code is from the OpenBSD operating system and is includes in the
+releases since version 4.8.  You can find the source code in OpenBSD's
+CVS repository, see:
 
 * http://www.openbsd.org/cgi-bin/cvsweb/src/sbin/iked/
 * http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/iked/
@@ -29,9 +30,15 @@ Original version:
 Portable version:
 
 * Darwin (OSX Mountain Lion 10.8)
-* TODO: more KAME-based platforms.
+* TODO: more KAME-based platforms, maybe Linux.
+
+Authors
+-------
+
+* Reyk Floeter <reyk@openbsd.org>
+* Mike Belopuhov <mikeb@openbsd.org>
 
 WARNING
 -------
 
-This is work in progress.
+This is work in progress!
