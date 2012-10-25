@@ -17,9 +17,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <errno.h>
-#include <limits.h>
+/* OPENBSD ORIGINAL: lib/libc/stdlib/strtonum.c */
+
+#ifdef HAVE_CONFIG_H
+#include "includes.h"
+#endif
+
+#ifndef HAVE_STRTONUM
 #include <stdlib.h>
+#include <limits.h>
+#include <errno.h>
 
 #define INVALID 	1
 #define TOOSMALL 	2
@@ -63,3 +70,5 @@ strtonum(const char *numstr, long long minval, long long maxval,
 
 	return (ll);
 }
+
+#endif /* HAVE_STRTONUM */
