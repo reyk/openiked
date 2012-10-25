@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="resource-type" content="document">
+<title>
+IKED(8)</title>
+</head>
+<body>
+<div class="mandoc">
+<table summary="Document Header" class="head" width="100%">
+<col width="30%">
+<col width="30%">
+<col width="30%">
+<tbody>
+<tr>
+<td class="head-ltitle">
+IKED(8)</td>
+<td class="head-vol" align="center">
+OpenBSD System Manager's Manual</td>
+<td class="head-rtitle" align="right">
+IKED(8)</td>
+</tr>
+</tbody>
+</table>
+<div class="section">
+<h1 id="x4e414d45">NAME</h1> <b class="name">iked</b> &#8212; <span class="desc">Internet Key Exchange version 2 (IKEv2) daemon</span></div>
+<div class="section">
+<h1 id="x53594e4f50534953">SYNOPSIS</h1><table class="synopsis">
+<col style="width: 4.00ex;">
+<col>
+<tbody>
+<tr>
+<td>
+iked</td>
+<td>
+&#91;<span class="opt"><b class="flag">&#45;dnSTtv</b></span>&#93; &#91;<span class="opt"><b class="flag">&#45;D</b> <i class="arg">macro</i>=<i class="arg">value</i></span>&#93; &#91;<span class="opt"><b class="flag">&#45;f</b> <i class="arg">file</i></span>&#93;</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<h1 id="x4445534352495054494f4e">DESCRIPTION</h1> <b class="name">iked</b> is an Internet Key Exchange (IKEv2) daemon which performs mutual authentication and which establishes and maintains IPsec flows and security associations (SAs) between the two peers.<p>
+The IKEv2 protocol is defined in RFC 5996, which combines and updates the previous standards: ISAKMP/Oakley (RFC 2408), IKE (RFC 2409), and the Internet DOI (RFC 2407). <b class="name">iked</b> only supports the IKEv2 protocol; support for ISAKMP/Oakley and IKEv1 is provided by <a class="link-man">isakmpd(8)</a>.<p>
+<b class="name">iked</b> supports mutual authentication using RSA public keys and X.509 certificates. See the <i class="link-sec"><a class="link-sec" href="#x46494c4553">FILES</a></i> section below and <i class="link-sec"><a class="link-sec" href="#x504b4920414e4420434552544946494341544520415554484f5249545920434f4d4d414e4453">PKI AND CERTIFICATE AUTHORITY COMMANDS</a></i> in <a class="link-man">ikectl(8)</a> for more information about creating and maintaining the public key infrastructure.<p>
+The options are as follows:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;D</b> <i class="arg">macro</i>=<i class="arg">value</i></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Define <i class="arg">macro</i> to be set to <i class="arg">value</i> on the command line. Overrides the definition of <i class="arg">macro</i> in the configuration file.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;d</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Do not daemonize and log to <span class="emph">stderr</span>.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;f</b> <i class="arg">file</i></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Use <i class="arg">file</i> as the configuration file, instead of the default <i class="file">/etc/iked.conf</i>.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;n</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Configtest mode. Only check the configuration file for validity.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;S</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Start <b class="name">iked</b> in passive mode. See the <b class="cmd">set passive</b> option in <a class="link-man">iked.conf(5)</a> for more information.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;T</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Disable NAT-Traversal and do not propose NAT-Traversal support to the peers.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;t</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Enforce NAT-Traversal and only listen to NAT-Traversal messages. This option is only recommended for testing; the default is to negotiate NAT-Traversal with the peers.</dd>
+<dt class="list-tag" style="margin-top: 1.00em;">
+<b class="flag">&#45;v</b></dt>
+<dd class="list-tag" style="margin-left: 6.00ex;">
+Produce more verbose output.</dd>
+</dl>
+</div>
+<div class="section">
+<h1 id="x46494c4553">FILES</h1><dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked.conf</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The default <b class="name">iked</b> configuration file.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked/ca/</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The directory where CA certificates are kept.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked/certs/</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The directory where IKE certificates are kept, both the local certificate(s) and those of the peers, if a choice to have them kept permanently has been made.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked/crls/</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The directory where CRLs are kept.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked/private/</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The directory where local private keys used for public key authentication are kept. The file <i class="file">local.key</i> is used to store the local private key.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/etc/iked/pubkeys/</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The directory in which trusted public keys are kept. The keys must be named in the fashion described above.</dd>
+<dt class="list-tag" style="margin-top: 0.00em;">
+<i class="file">/var/run/iked.sock</i></dt>
+<dd class="list-tag" style="margin-left: 21.00ex;">
+The default <b class="name">iked</b> control socket.</dd>
+</dl>
+</div>
+<div class="section">
+<h1 id="x53454520414c534f">SEE ALSO</h1> <a class="link-man">iked.conf(5)</a>, <a class="link-man">ikectl(8)</a>, <a class="link-man">isakmpd(8)</a></div>
+<div class="section">
+<h1 id="x5354414e4441524453">STANDARDS</h1> <span class="ref"><span class="ref-auth">C. Kaufman</span>, <span class="ref-auth">P. Hoffman</span>, <span class="ref-auth">Y. Nir</span>, and <span class="ref-auth">P. Eronen</span>, <span class="ref-title">Internet Key Exchange Protocol Version 2 (IKEv2)</span>, <span class="ref-rep">RFC 5996</span>, <span class="ref-date">September 2010</span>.</span></div>
+<div class="section">
+<h1 id="x484953544f5259">HISTORY</h1> The <b class="name">iked</b> program first appeared in <span class="unix">OpenBSD&#160;4.8</span>.</div>
+<div class="section">
+<h1 id="x415554484f5253">AUTHORS</h1> The <b class="name">iked</b> program was written by <span class="author">Reyk Floeter</span> &#60;reyk@openbsd.org&#62;.</div>
+<div class="section">
+<h1 id="x43415645415453">CAVEATS</h1> <b class="name">iked</b> is not yet finished and is missing some important security features. It should not yet be used in production networks.</div>
+<table summary="Document Footer" class="foot" width="100%">
+<col width="50%">
+<col width="50%">
+<tbody>
+<tr>
+<td class="foot-date">
+October 22, 2012</td>
+<td class="foot-os" align="right">
+OpenBSD 5.2</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>
+
