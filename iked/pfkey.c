@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfkey.c,v 1.19 2012/09/18 12:07:59 reyk Exp $	*/
+/*	$OpenBSD: pfkey.c,v 1.20 2012/10/23 14:40:14 reyk Exp $	*/
 /*	$vantronix: pfkey.c,v 1.11 2010/06/03 07:57:33 reyk Exp $	*/
 
 /*
