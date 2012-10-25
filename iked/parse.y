@@ -26,7 +26,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <net/if.h>

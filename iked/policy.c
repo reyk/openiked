@@ -19,10 +19,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/tree.h>
+#include "openbsd-compat/sys-tree.h"
 
 #include <net/if.h>
 #include <netinet/in_systm.h>

@@ -22,9 +22,9 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/un.h>
-#include <sys/tree.h>
+#include "openbsd-compat/sys-tree.h"
 
 #include <err.h>
 #include <errno.h>

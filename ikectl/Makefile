@@ -19,7 +19,7 @@ LDADD=		-lutil -lcrypto
 DPADD=		${LIBUTIL}
 CFLAGS+=	-Wall -D_GNU_SOURCE
 CFLAGS+=	-include ${COMPAT_DIR}/compat.h
-CFLAGS+=	-I${.CURDIR} -I${COMPAT_DIR} -I${IKEDDIR}
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/.. -I${COMPAT_DIR} -I${IKEDDIR}
 CFLAGS+=	-I/opt/local/include -I/opt/local/include/libevent1
 CFLAGS+=	-DPATH_OPENSSL='"/opt/local/bin/openssl"'
 CFLAGS+=	-DPATH_ZIP='"/usr/bin/zip"'

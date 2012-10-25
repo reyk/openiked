@@ -18,8 +18,8 @@
  */
 
 #include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/tree.h>
+#include "openbsd-compat/sys-queue.h"
+#include "openbsd-compat/sys-tree.h"
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <sys/socket.h>

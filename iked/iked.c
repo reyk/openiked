@@ -19,7 +19,7 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
@@ -81,6 +81,11 @@ main(int argc, char *argv[])
 	struct privsep	*ps;
 
 	log_init(1);
+
+#ifndef HAVE_SETPROCTITLE
+	/* Prepare for later setproctitle emulation */
+	compat_init_setproctitle(argc, argv);
+#endif
 
 	while ((c = getopt(argc, argv, "dD:nf:vSTt")) != -1) {
 		switch (c) {

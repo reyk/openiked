@@ -60,8 +60,11 @@
 
 #define setresgid(_rgid, _egid, _sgid)	setregid(_rgid, _egid)
 #define setresuid(_ruid, _euid, _suid)	setregid(_ruid, _euid)
-#define setproctitle(_x, ...) 		do { } while(0)
 
+void		 compat_init_setproctitle(int, char *[]);
+#ifndef HAVE_SETPROCTITLE
+void		 setproctitle(const char *, ...);
+#endif
 long long	 strtonum(const char *, long long, long long, const char **);
 
 #endif /* _OPENBSD_COMPAT_H */

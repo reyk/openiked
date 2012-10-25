@@ -18,8 +18,8 @@
  */
 
 #include <sys/types.h>
-#include <sys/tree.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-tree.h"
+#include "openbsd-compat/sys-queue.h"
 #include <imsg.h>
 
 #include "types.h"
