@@ -1,4 +1,4 @@
-OpenIKEd
+OpenIKED
 ========
 
 This is the port of OpenBSD's iked to Darwin/OSX and other systems in
@@ -53,7 +53,7 @@ Original version:
 
 Portable version:
 
-* Darwin (OSX Mountain Lion 10.8)
+* Darwin (OS X Mountain Lion 10.8)
 * TODO: more PFKEYv2/KAME-based platforms, maybe Linux.
 
 Authors
