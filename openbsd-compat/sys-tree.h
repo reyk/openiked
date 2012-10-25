@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: sys/openbsd-compat/sys-tree.h */
+
 #ifndef	_SYS_TREE_H_
 #define	_SYS_TREE_H_
 
