@@ -41,9 +41,6 @@
  * Require for OS/X and other platforms that have old/broken/incomplete
  * <openbsd-compat/sys-queue.h>.
  */
-#undef _SYS_QUEUE_H_
-#undef _Q_INVALIDATE
-#undef _Q_INVALIDATE
 #undef SLIST_HEAD
 #undef SLIST_HEAD_INITIALIZER
 #undef SLIST_ENTRY
