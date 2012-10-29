@@ -113,6 +113,18 @@ AC_ARG_WITH(Werror,
 	]
 )
 
+AC_ARG_WITH(debug,
+	[  --with-debug           Build main code with debugging symbols and disable privsep],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"; then
+			debug_flags="-g -DDEBUG=1"
+			if test "x${withval}" != "xyes"; then
+				debug_flags="$withval"
+			fi
+		fi
+	]
+)
+
 AC_CHECK_HEADERS([\
 	arpa/inet.h \
 	ctype.h \
@@ -199,15 +211,15 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		supported by setproctitle.c])
 	# IPv6 compatibility
 	AC_DEFINE([__APPLE_USE_RFC_3542], [1], [Use RFC3542 IPv6 API])
+	ac_deprecated_daemon=yes
 	;;
 *-*-dragonfly*)
-	SSHDLIBS="$SSHDLIBS -lcrypt"
+	IKEDLIBS="$IKEDLIBS -lcrypt"
 	;;
 *-*-hpux*)
 	# first we define all of the options common to all HP-UX releases
 	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
 	AC_DEFINE([SPT_TYPE], [SPT_PSTAT])
-	maildir="/var/mail"
 	;;
 *-*-linux*)
 	check_for_libcrypt_later=1
@@ -519,6 +531,10 @@ AC_CHECK_FUNC([daemon],
 	[AC_CHECK_LIB([bsd], [daemon],
 		[LIBS="$LIBS -lbsd"; AC_DEFINE([HAVE_DAEMON])])]
 )
+if test "x$ac_deprecated_daemon" = "xyes"; then
+	AC_DEFINE([HAVE_DEPRECATED_DAEMON], [1],
+		[System declares daemon as deprecated])
+fi
 
 ##chl
 AC_CHECK_FUNC([fparseln],
@@ -774,325 +790,6 @@ if test "x$ac_cv_func_getaddrinfo" = "xyes" && \
 	)
 fi
 
-# Search for OpenSSL
-saved_CPPFLAGS="$CPPFLAGS"
-saved_LDFLAGS="$LDFLAGS"
-AC_ARG_WITH([ssl-dir],
-	[  --with-ssl-dir=PATH     Specify path to OpenSSL installation ],
-	[
-		if test "x$withval" != "xno" ; then
-			case "$withval" in
-				# Relative paths
-				./*|../*)	withval="`pwd`/$withval"
-			esac
-			if test -d "$withval/lib"; then
-				if test -n "${need_dash_r}"; then
-					LDFLAGS="-L${withval}/lib -R${withval}/lib ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib ${LDFLAGS}"
-				fi
-			elif test -d "$withval/lib64"; then
-				if test -n "${need_dash_r}"; then
-					LDFLAGS="-L${withval}/lib64 -R${withval}/lib64 ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib64 ${LDFLAGS}"
-				fi
-			else
-				if test -n "${need_dash_r}"; then
-					LDFLAGS="-L${withval} -R${withval} ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval} ${LDFLAGS}"
-				fi
-			fi
-			if test -d "$withval/include"; then
-				CPPFLAGS="-I${withval}/include ${CPPFLAGS}"
-			else
-				CPPFLAGS="-I${withval} ${CPPFLAGS}"
-			fi
-		fi
-	]
-)
-LIBS="-lcrypto -lssl $LIBS"
-AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL], [1],
-	[Define if your ssl headers are included
-	with #include <openssl/header.h>])],
-	[
-		dnl Check default openssl install dir
-		if test -n "${need_dash_r}"; then
-			LDFLAGS="-L/usr/local/ssl/lib -R/usr/local/ssl/lib ${saved_LDFLAGS}"
-		else
-			LDFLAGS="-L/usr/local/ssl/lib ${saved_LDFLAGS}"
-		fi
-		CPPFLAGS="-I/usr/local/ssl/include ${saved_CPPFLAGS}"
-		AC_CHECK_HEADER([openssl/opensslv.h], ,
-		    [AC_MSG_ERROR([*** OpenSSL headers missing - please install first or check config.log ***])])
-		AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL])],
-			[
-				AC_MSG_ERROR([*** Can't find recent OpenSSL libcrypto (see config.log for details) ***])
-			]
-		)
-	]
-)
-
-# Determine OpenSSL header version
-AC_MSG_CHECKING([OpenSSL header version])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <string.h>
-#include <openssl/opensslv.h>
-#define DATA "conftest.sslincver"
-	]], [[
-	FILE *fd;
-	int rc;
-
-	fd = fopen(DATA,"w");
-	if(fd == NULL)
-		exit(1);
-
-	if ((rc = fprintf(fd ,"%x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
-		exit(1);
-
-	exit(0);
-	]])],
-	[
-		ssl_header_ver=`cat conftest.sslincver`
-		AC_MSG_RESULT([$ssl_header_ver])
-	],
-	[
-		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([OpenSSL version header not found.])
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
-	]
-)
-
-# Determine OpenSSL library version
-AC_MSG_CHECKING([OpenSSL library version])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <string.h>
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
-#define DATA "conftest.ssllibver"
-	]], [[
-	FILE *fd;
-	int rc;
-
-	fd = fopen(DATA,"w");
-	if(fd == NULL)
-		exit(1);
-
-	if ((rc = fprintf(fd ,"%x (%s)\n", SSLeay(), SSLeay_version(SSLEAY_VERSION))) <0)
-		exit(1);
-
-	exit(0);
-	]])],
-	[
-		ssl_library_ver=`cat conftest.ssllibver`
-		AC_MSG_RESULT([$ssl_library_ver])
-	],
-	[
-		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([OpenSSL library not found.])
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
-	]
-)
-
-AC_ARG_WITH([openssl-header-check],
-	[  --without-openssl-header-check Disable OpenSSL version consistency check],
-	[  if test "x$withval" = "xno" ; then
-		openssl_check_nonfatal=1
-	   fi
-	]
-)
-
-# Sanity check OpenSSL headers
-AC_MSG_CHECKING([whether OpenSSL's headers match the library])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/opensslv.h>
-	]], [[
-	exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1);
-	]])],
-	[
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-		if test "x$openssl_check_nonfatal" = "x"; then
-			AC_MSG_ERROR([Your OpenSSL headers do not match your
-library. Check config.log for details.
-If you are sure your installation is consistent, you can disable the check
-by running "./configure --without-openssl-header-check".
-Also see contrib/findssl.sh for help identifying header/library mismatches.
-])
-		else
-			AC_MSG_WARN([Your OpenSSL headers do not match your
-library. Check config.log for details.
-Also see contrib/findssl.sh for help identifying header/library mismatches.])
-		fi
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
-	]
-)
-
-AC_MSG_CHECKING([if programs using OpenSSL functions will link])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
-	[[ SSLeay_add_all_algorithms(); ]])],
-	[
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-		saved_LIBS="$LIBS"
-		LIBS="$LIBS -ldl"
-		AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
-		AC_LINK_IFELSE(
-			[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
-			[[ SSLeay_add_all_algorithms(); ]])],
-			[
-				AC_MSG_RESULT([yes])
-			],
-			[
-				AC_MSG_RESULT([no])
-				LIBS="$saved_LIBS"
-			]
-		)
-	]
-)
-
-# Some systems want crypt() from libcrypt, *not* the version in OpenSSL,
-# because the system crypt() is more featureful.
-if test "x$check_for_libcrypt_before" = "x1"; then
-	AC_CHECK_LIB([crypt], [crypt])
-fi
-
-# Some Linux systems (Slackware) need crypt() from libcrypt, *not* the
-# version in OpenSSL.
-if test "x$check_for_libcrypt_later" = "x1"; then
-	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
-fi
-
-### Configure cryptographic random number support
-
-# Check wheter OpenSSL seeds itself
-AC_MSG_CHECKING([whether OpenSSL's PRNG is internally seeded])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/rand.h>
-	]], [[
-	exit(RAND_status() == 1 ? 0 : 1);
-	]])],
-	[
-		OPENSSL_SEEDS_ITSELF=yes
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-	],
-	[
-		AC_MSG_WARN([cross compiling: assuming yes])
-		# This is safe, since we will fatal() at runtime if
-		# OpenSSL is not seeded correctly.
-		OPENSSL_SEEDS_ITSELF=yes
-	]
-)
-
-# PRNGD TCP socket
-AC_ARG_WITH([prngd-port],
-	[  --with-prngd-port=PORT  read entropy from PRNGD/EGD TCP localhost:PORT],
-	[
-		case "$withval" in
-		no)
-			withval=""
-			;;
-		[[0-9]]*)
-			;;
-		*)
-			AC_MSG_ERROR([You must specify a numeric port number for --with-prngd-port])
-			;;
-		esac
-		if test ! -z "$withval" ; then
-			PRNGD_PORT="$withval"
-			AC_DEFINE_UNQUOTED([PRNGD_PORT], [$PRNGD_PORT],
-				[Port number of PRNGD/EGD random number socket])
-		fi
-	]
-)
-
-# PRNGD Unix domain socket
-AC_ARG_WITH([prngd-socket],
-	[  --with-prngd-socket=FILE read entropy from PRNGD/EGD socket FILE (default=/var/run/egd-pool)],
-	[
-		case "$withval" in
-		yes)
-			withval="/var/run/egd-pool"
-			;;
-		no)
-			withval=""
-			;;
-		/*)
-			;;
-		*)
-			AC_MSG_ERROR([You must specify an absolute path to the entropy socket])
-			;;
-		esac
-
-		if test ! -z "$withval" ; then
-			if test ! -z "$PRNGD_PORT" ; then
-				AC_MSG_ERROR([You may not specify both a PRNGD/EGD port and socket])
-			fi
-			if test ! -r "$withval" ; then
-				AC_MSG_WARN([Entropy socket is not readable])
-			fi
-			PRNGD_SOCKET="$withval"
-			AC_DEFINE_UNQUOTED([PRNGD_SOCKET], ["$PRNGD_SOCKET"],
-				[Location of PRNGD/EGD random number socket])
-		fi
-	],
-	[
-		# Check for existing socket only if we don't have a random device already
-		if test "x$OPENSSL_SEEDS_ITSELF" != "xyes" ; then
-			AC_MSG_CHECKING([for PRNGD/EGD socket])
-			# Insert other locations here
-			for sock in /var/run/egd-pool /dev/egd-pool /etc/entropy; do
-				if test -r $sock && $TEST_MINUS_S_SH -c "test -S $sock -o -p $sock" ; then
-					PRNGD_SOCKET="$sock"
-					AC_DEFINE_UNQUOTED([PRNGD_SOCKET], ["$PRNGD_SOCKET"])
-					break;
-				fi
-			done
-			if test ! -z "$PRNGD_SOCKET" ; then
-				AC_MSG_RESULT([$PRNGD_SOCKET])
-			else
-				AC_MSG_RESULT([not found])
-			fi
-		fi
-	]
-)
-
-# Which randomness source do we use?
-if test ! -z "$PRNGD_PORT" ; then
-	RAND_MSG="PRNGd port $PRNGD_PORT"
-elif test ! -z "$PRNGD_SOCKET" ; then
-	RAND_MSG="PRNGd socket $PRNGD_SOCKET"
-elif test ! -z "$OPENSSL_SEEDS_ITSELF" ; then
-	AC_DEFINE([OPENSSL_PRNG_ONLY], [1],
-		[Define if you want OpenSSL's internally seeded PRNG only])
-	RAND_MSG="OpenSSL internal ONLY"
-else
-	AC_MSG_ERROR([OpenSSH has no source of random numbers. Please configure OpenSSL with an entropy source or re-run configure using one of the --with-prngd-port or --with-prngd-socket options])
-fi
-
 # Check for PAM libs
 PAM_MSG="no"
 AC_ARG_WITH([pam],
@@ -1113,7 +810,7 @@ AC_ARG_WITH([pam],
 
 			PAM_MSG="yes"
 
-			SSHDLIBS="$SSHDLIBS -lpam"
+			IKEDLIBS="$IKEDLIBS -lpam"
 			AC_DEFINE([USE_PAM], [1],
 				[Define if you want to enable PAM support])
 
@@ -1123,7 +820,7 @@ AC_ARG_WITH([pam],
 					# libdl already in LIBS
 					;;
 				*)
-					SSHDLIBS="$SSHDLIBS -ldl"
+					IKEDLIBS="$IKEDLIBS -ldl"
 					;;
 				esac
 			fi
@@ -1153,25 +850,6 @@ if test "x$PAM_MSG" = "xyes" ; then
 		
 	])
 fi
-
-AC_DEFINE_UNQUOTED([IKED_CONFIG], ["${sysconfdir}/iked.conf"],
-	[configuration file path])
-AC_DEFINE_UNQUOTED([IKED_CA], ["${sysconfdir}/iked/"],
-	[certificate path])
-
-IKED_USER=_iked
-AC_ARG_WITH([privsep-user],
-	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-		    test "x${withval}" != "xyes"; then
-			IKED_USER=$withval
-		fi
-	]
-)
-AC_DEFINE_UNQUOTED([IKED_USER], ["$IKED_USER"],
-	[non-privileged user for privilege separation])
-AC_SUBST([IKED_USER])
 
 # Check for  long long datatypes
 AC_CHECK_TYPES([long long, unsigned long long, long double])
@@ -1941,88 +1619,6 @@ AC_ARG_WITH([privsep-path],
 )
 AC_SUBST([PRIVSEP_PATH])
 
-dnl # --with-maildir=/path/to/mail gets top priority.
-dnl # if maildir is set in the platform case statement above we use that.
-dnl # Otherwise we run a program to get the dir from system headers.
-dnl # We first look for _PATH_MAILDIR then MAILDIR then _PATH_MAIL
-dnl # If we find _PATH_MAILDIR we do nothing because that is what
-dnl # session.c expects anyway. Otherwise we set to the value found
-dnl # stripping any trailing slash. If for some strage reason our program
-dnl # does not find what it needs, we default to /var/spool/mail.
-# Check for mail directory
-AC_ARG_WITH([maildir],
-    [  --with-maildir=/path/to/mail    Specify your system mail directory],
-    [
-	if test "X$withval" != X  &&  test "x$withval" != xno  &&  \
-	    test "x${withval}" != xyes; then
-		AC_DEFINE_UNQUOTED([MAIL_DIRECTORY], ["$withval"],
-            [Set this to your mail directory if you do not have _PATH_MAILDIR])
-	    fi
-     ],[
-	if test "X$maildir" != "X"; then
-	    AC_DEFINE_UNQUOTED([MAIL_DIRECTORY], ["$maildir"])
-	else
-	    AC_MSG_CHECKING([Discovering system mail directory])
-	    AC_RUN_IFELSE(
-		[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <string.h>
-#ifdef HAVE_PATHS_H
-#include <paths.h>
-#endif
-#ifdef HAVE_MAILLOCK_H
-#include <maillock.h>
-#endif
-#define DATA "conftest.maildir"
-	]], [[
-	FILE *fd;
-	int rc;
-
-	fd = fopen(DATA,"w");
-	if(fd == NULL)
-		exit(1);
-
-#if defined (_PATH_MAILDIR)
-	if ((rc = fprintf(fd ,"_PATH_MAILDIR:%s\n", _PATH_MAILDIR)) <0)
-		exit(1);
-#elif defined (MAILDIR)
-	if ((rc = fprintf(fd ,"MAILDIR:%s\n", MAILDIR)) <0)
-		exit(1);
-#elif defined (_PATH_MAIL)
-	if ((rc = fprintf(fd ,"_PATH_MAIL:%s\n", _PATH_MAIL)) <0)
-		exit(1);
-#else
-	exit (2);
-#endif
-
-	exit(0);
-		]])],
-		[
-	 	    maildir_what=`awk -F: '{print $1}' conftest.maildir`
-		    maildir=`awk -F: '{print $2}' conftest.maildir \
-			| sed 's|/$||'`
-		    AC_MSG_RESULT([Using: $maildir from $maildir_what])
-		    if test "x$maildir_what" != "x_PATH_MAILDIR"; then
-			AC_DEFINE_UNQUOTED([MAIL_DIRECTORY], ["$maildir"])
-		    fi
-		],
-		[
-		    if test "X$ac_status" = "X2";then
-# our test program didn't find it. Default to /var/spool/mail
-			AC_MSG_RESULT([Using: default value of /var/spool/mail])
-			AC_DEFINE_UNQUOTED([MAIL_DIRECTORY], ["/var/spool/mail"])
-		     else
-			AC_MSG_RESULT([*** not found ***])
-		     fi
-		],
-		[
-			AC_MSG_WARN([cross compiling: use --with-maildir=/path/to/mail])
-		]
-	    )
-	fi
-    ]
-) # maildir
-
 # Options from here on. Some of these are preset by platform above
 AC_ARG_WITH([mantype],
 	[  --with-mantype=man|cat|doc  Set man page type],
@@ -2069,6 +1665,30 @@ AC_ARG_WITH([bsd-auth],
 	]
 )
 
+IKED_USER=_iked
+AC_ARG_WITH([privsep-user],
+	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			IKED_USER=$withval
+		fi
+	]
+)
+AC_DEFINE_UNQUOTED([IKED_USER], ["$IKED_USER"],
+	[non-privileged user for privilege separation])
+AC_SUBST([IKED_USER])
+
+ikedconf=`eval echo ${sysconfdir}/iked.conf`
+AC_DEFINE_UNQUOTED([IKED_CONFIG], ["$ikedconf"],
+	[configuration file path])
+AC_SUBST([IKED_CONFIG])
+
+ikedca=`eval echo $sysconfdir/iked/`
+AC_DEFINE_UNQUOTED([IKED_CA], ["$ikedca"],
+	[certificate path])
+AC_SUBST([IKED_CA])
+
 # Where to place smtpd.sock
 sockdir=/var/run
 # make sure the directory exists
@@ -2096,13 +1716,6 @@ AC_DEFINE_UNQUOTED([IKED_SOCKDIR], ["$sockdir"],
 	[Specify location of smtpd.sock])
 AC_SUBST([sockdir])
 
-AC_DEFINE([_GNU_SOURCE], [], [Enable GNU Extensions])
-AC_DEFINE([_C99_SOURCE], [1], [Enable C99 Extensions])
-
-dnl Adding -Werror to CFLAGS early prevents configure tests from running.
-dnl Add now.
-CFLAGS="$CFLAGS $werror_flags"
-
 if test "x$ac_cv_func_getaddrinfo" != "xyes" ; then
 	TEST_SSH_IPV6=no
 else
@@ -2113,7 +1726,6 @@ AC_SUBST([TEST_SSH_IPV6], [$TEST_SSH_IPV6])
 
 AC_EXEEXT
 
-##chl (still based on portable OpenSSH's configure.ac)
 AC_MSG_CHECKING([if inet_net_pton will link])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/types.h>
@@ -2142,9 +1754,355 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 			[LIBS="$saved_LIBS"
 			 AC_MSG_RESULT([no])])
 		    ])
-##end of chl
 
-##chl (based on OpenSSL checks, see above)
+
+# Search for OpenSSL
+saved_CPPFLAGS="$CPPFLAGS"
+saved_LDFLAGS="$LDFLAGS"
+AC_ARG_WITH([ssl-dir],
+	[  --with-ssl-dir=PATH     Specify path to OpenSSL installation ],
+	[
+		if test "x$withval" != "xno" ; then
+			case "$withval" in
+				# Relative paths
+				./*|../*)	withval="`pwd`/$withval"
+			esac
+			if test -d "$withval/lib"; then
+				if test -n "${need_dash_r}"; then
+					LDFLAGS="-L${withval}/lib -R${withval}/lib ${LDFLAGS}"
+				else
+					LDFLAGS="-L${withval}/lib ${LDFLAGS}"
+				fi
+			elif test -d "$withval/lib64"; then
+				if test -n "${need_dash_r}"; then
+					LDFLAGS="-L${withval}/lib64 -R${withval}/lib64 ${LDFLAGS}"
+				else
+					LDFLAGS="-L${withval}/lib64 ${LDFLAGS}"
+				fi
+			else
+				if test -n "${need_dash_r}"; then
+					LDFLAGS="-L${withval} -R${withval} ${LDFLAGS}"
+				else
+					LDFLAGS="-L${withval} ${LDFLAGS}"
+				fi
+			fi
+			if test -d "$withval/include"; then
+				CPPFLAGS="-I${withval}/include ${CPPFLAGS}"
+			else
+				CPPFLAGS="-I${withval} ${CPPFLAGS}"
+			fi
+		fi
+	]
+)
+LIBS="-lcrypto -lssl $LIBS"
+AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL], [1],
+	[Define if your ssl headers are included
+	with #include <openssl/header.h>])],
+	[
+		dnl Check default openssl install dir
+		if test -n "${need_dash_r}"; then
+			LDFLAGS="-L/usr/local/ssl/lib -R/usr/local/ssl/lib ${saved_LDFLAGS}"
+		else
+			LDFLAGS="-L/usr/local/ssl/lib ${saved_LDFLAGS}"
+		fi
+		CPPFLAGS="-I/usr/local/ssl/include ${saved_CPPFLAGS}"
+		AC_CHECK_HEADER([openssl/opensslv.h], ,
+		    [AC_MSG_ERROR([*** OpenSSL headers missing - please install first or check config.log ***])])
+		AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL])],
+			[
+				AC_MSG_ERROR([*** Can't find recent OpenSSL libcrypto (see config.log for details) ***])
+			]
+		)
+	]
+)
+
+# Determine OpenSSL header version
+AC_MSG_CHECKING([OpenSSL header version])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <stdio.h>
+#include <string.h>
+#include <openssl/opensslv.h>
+#define DATA "conftest.sslincver"
+	]], [[
+	FILE *fd;
+	int rc;
+
+	fd = fopen(DATA,"w");
+	if(fd == NULL)
+		exit(1);
+
+	if ((rc = fprintf(fd ,"%x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+		exit(1);
+
+	exit(0);
+	]])],
+	[
+		ssl_header_ver=`cat conftest.sslincver`
+		AC_MSG_RESULT([$ssl_header_ver])
+	],
+	[
+		AC_MSG_RESULT([not found])
+		AC_MSG_ERROR([OpenSSL version header not found.])
+	],
+	[
+		AC_MSG_WARN([cross compiling: not checking])
+	]
+)
+
+# Determine OpenSSL library version
+AC_MSG_CHECKING([OpenSSL library version])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <stdio.h>
+#include <string.h>
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#define DATA "conftest.ssllibver"
+	]], [[
+	FILE *fd;
+	int rc;
+
+	fd = fopen(DATA,"w");
+	if(fd == NULL)
+		exit(1);
+
+	if ((rc = fprintf(fd ,"%x (%s)\n", SSLeay(), SSLeay_version(SSLEAY_VERSION))) <0)
+		exit(1);
+
+	exit(0);
+	]])],
+	[
+		ssl_library_ver=`cat conftest.ssllibver`
+		AC_MSG_RESULT([$ssl_library_ver])
+	],
+	[
+		AC_MSG_RESULT([not found])
+		AC_MSG_ERROR([OpenSSL library not found.])
+	],
+	[
+		AC_MSG_WARN([cross compiling: not checking])
+	]
+)
+
+AC_ARG_WITH([openssl-header-check],
+	[  --without-openssl-header-check Disable OpenSSL version consistency check],
+	[  if test "x$withval" = "xno" ; then
+		openssl_check_nonfatal=1
+	   fi
+	]
+)
+
+# Sanity check OpenSSL headers
+AC_MSG_CHECKING([whether OpenSSL's headers match the library])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <string.h>
+#include <openssl/opensslv.h>
+	]], [[
+	exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1);
+	]])],
+	[
+		AC_MSG_RESULT([yes])
+	],
+	[
+		AC_MSG_RESULT([no])
+		if test "x$openssl_check_nonfatal" = "x"; then
+			AC_MSG_ERROR([Your OpenSSL headers do not match your
+library. Check config.log for details.
+If you are sure your installation is consistent, you can disable the check
+by running "./configure --without-openssl-header-check".
+Also see contrib/findssl.sh for help identifying header/library mismatches.
+])
+		else
+			AC_MSG_WARN([Your OpenSSL headers do not match your
+library. Check config.log for details.
+Also see contrib/findssl.sh for help identifying header/library mismatches.])
+		fi
+	],
+	[
+		AC_MSG_WARN([cross compiling: not checking])
+	]
+)
+
+AC_MSG_CHECKING([if programs using OpenSSL functions will link])
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
+	[[ SSLeay_add_all_algorithms(); ]])],
+	[
+		AC_MSG_RESULT([yes])
+	],
+	[
+		AC_MSG_RESULT([no])
+		saved_LIBS="$LIBS"
+		LIBS="$LIBS -ldl"
+		AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
+		AC_LINK_IFELSE(
+			[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
+			[[ SSLeay_add_all_algorithms(); ]])],
+			[
+				AC_MSG_RESULT([yes])
+			],
+			[
+				AC_MSG_RESULT([no])
+				LIBS="$saved_LIBS"
+			]
+		)
+	]
+)
+
+# Some systems want crypt() from libcrypt, *not* the version in OpenSSL,
+# because the system crypt() is more featureful.
+if test "x$check_for_libcrypt_before" = "x1"; then
+	AC_CHECK_LIB([crypt], [crypt])
+fi
+
+# Some Linux systems (Slackware) need crypt() from libcrypt, *not* the
+# version in OpenSSL.
+if test "x$check_for_libcrypt_later" = "x1"; then
+	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
+fi
+
+# Determine OpenSSL configuration directory
+SSLDIR=/etc/ssl
+AC_MSG_CHECKING([OpenSSL configuration directory])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <stdio.h>
+#include <string.h>
+#define HEADER_CRYPTLIB_H
+#include <openssl/opensslv.h>
+#include <openssl/opensslconf.h>
+#define DATA "conftest.sslincdir"
+	]], [[
+	FILE *fp;
+	int rc;
+
+	if ((fp = fopen(DATA,"w")) == NULL)
+		return(1);
+
+	if ((rc = fprintf(fp, "%s\n", OPENSSLDIR)) <0)
+		return(1);
+	fclose(fp);
+	]])],
+	[
+		SSLDIR=`cat conftest.sslincdir`
+	],
+	[], [])
+AC_MSG_RESULT([$SSLDIR])
+
+### Configure cryptographic random number support
+
+# Check wheter OpenSSL seeds itself
+AC_MSG_CHECKING([whether OpenSSL's PRNG is internally seeded])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <string.h>
+#include <openssl/rand.h>
+	]], [[
+	exit(RAND_status() == 1 ? 0 : 1);
+	]])],
+	[
+		OPENSSL_SEEDS_ITSELF=yes
+		AC_MSG_RESULT([yes])
+	],
+	[
+		AC_MSG_RESULT([no])
+	],
+	[
+		AC_MSG_WARN([cross compiling: assuming yes])
+		# This is safe, since we will fatal() at runtime if
+		# OpenSSL is not seeded correctly.
+		OPENSSL_SEEDS_ITSELF=yes
+	]
+)
+
+# PRNGD TCP socket
+AC_ARG_WITH([prngd-port],
+	[  --with-prngd-port=PORT  read entropy from PRNGD/EGD TCP localhost:PORT],
+	[
+		case "$withval" in
+		no)
+			withval=""
+			;;
+		[[0-9]]*)
+			;;
+		*)
+			AC_MSG_ERROR([You must specify a numeric port number for --with-prngd-port])
+			;;
+		esac
+		if test ! -z "$withval" ; then
+			PRNGD_PORT="$withval"
+			AC_DEFINE_UNQUOTED([PRNGD_PORT], [$PRNGD_PORT],
+				[Port number of PRNGD/EGD random number socket])
+		fi
+	]
+)
+
+# PRNGD Unix domain socket
+AC_ARG_WITH([prngd-socket],
+	[  --with-prngd-socket=FILE read entropy from PRNGD/EGD socket FILE (default=/var/run/egd-pool)],
+	[
+		case "$withval" in
+		yes)
+			withval="/var/run/egd-pool"
+			;;
+		no)
+			withval=""
+			;;
+		/*)
+			;;
+		*)
+			AC_MSG_ERROR([You must specify an absolute path to the entropy socket])
+			;;
+		esac
+
+		if test ! -z "$withval" ; then
+			if test ! -z "$PRNGD_PORT" ; then
+				AC_MSG_ERROR([You may not specify both a PRNGD/EGD port and socket])
+			fi
+			if test ! -r "$withval" ; then
+				AC_MSG_WARN([Entropy socket is not readable])
+			fi
+			PRNGD_SOCKET="$withval"
+			AC_DEFINE_UNQUOTED([PRNGD_SOCKET], ["$PRNGD_SOCKET"],
+				[Location of PRNGD/EGD random number socket])
+		fi
+	],
+	[
+		# Check for existing socket only if we don't have a random device already
+		if test "x$OPENSSL_SEEDS_ITSELF" != "xyes" ; then
+			AC_MSG_CHECKING([for PRNGD/EGD socket])
+			# Insert other locations here
+			for sock in /var/run/egd-pool /dev/egd-pool /etc/entropy; do
+				if test -r $sock && $TEST_MINUS_S_SH -c "test -S $sock -o -p $sock" ; then
+					PRNGD_SOCKET="$sock"
+					AC_DEFINE_UNQUOTED([PRNGD_SOCKET], ["$PRNGD_SOCKET"])
+					break;
+				fi
+			done
+			if test ! -z "$PRNGD_SOCKET" ; then
+				AC_MSG_RESULT([$PRNGD_SOCKET])
+			else
+				AC_MSG_RESULT([not found])
+			fi
+		fi
+	]
+)
+
+# Which randomness source do we use?
+if test ! -z "$PRNGD_PORT" ; then
+	RAND_MSG="PRNGd port $PRNGD_PORT"
+elif test ! -z "$PRNGD_SOCKET" ; then
+	RAND_MSG="PRNGd socket $PRNGD_SOCKET"
+elif test ! -z "$OPENSSL_SEEDS_ITSELF" ; then
+	AC_DEFINE([OPENSSL_PRNG_ONLY], [1],
+		[Define if you want OpenSSL's internally seeded PRNG only])
+	RAND_MSG="OpenSSL internal ONLY"
+else
+	AC_MSG_ERROR([OpenSSH has no source of random numbers. Please configure OpenSSL with an entropy source or re-run configure using one of the --with-prngd-port or --with-prngd-socket options])
+fi
+
 # Search for libevent
 saved_CPPFLAGS="$CPPFLAGS"
 saved_LDFLAGS="$LDFLAGS"
@@ -2158,9 +2116,13 @@ AC_ARG_WITH([libevent-dir],
 				withval="`pwd`/$withval"
 				;;
 			*/libevent1|*/libevent1/|*/libevent|*/libevent/)
+				AC_MSG_CHECKING([libevent header path])
 				evincludes=`echo $withval | sed s/lib/include/`
 				if test -d "$evincludes"; then
 					CPPFLAGS="-I${evincludes} ${CPPFLAGS}"
+					AC_MSG_RESULT([${evincludes}])
+				else
+					AC_MSG_RESULT([not found])
 				fi
 				;;
 			esac
@@ -2199,6 +2161,7 @@ AC_MSG_CHECKING([libevent header version])
 AC_RUN_IFELSE(
 	[AC_LANG_PROGRAM([[
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <event.h>
 #define DATA "conftest.libeventincver"
@@ -2208,12 +2171,12 @@ AC_RUN_IFELSE(
 
 	fd = fopen(DATA,"w");
 	if(fd == NULL)
-		exit(1);
+		return(1);
 
 	if ((rc = fprintf(fd ,"%s\n", _EVENT_VERSION)) <0)
-		exit(1);
+		return(1);
 
-	exit(0);
+	return(0);
 	]])],
 	[
 		libevent_header_ver=`cat conftest.libeventincver`
@@ -2221,7 +2184,7 @@ AC_RUN_IFELSE(
 	],
 	[
 		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([libevent version header not found.])
+		AC_MSG_ERROR([libevent version header not found. ${CPPFLAGS}])
 	],
 	[
 		AC_MSG_WARN([cross compiling: not checking])
@@ -2242,12 +2205,12 @@ AC_RUN_IFELSE(
 
 	fd = fopen(DATA,"w");
 	if(fd == NULL)
-		exit(1);
+		return(1);
 
 	if ((rc = fprintf(fd ,"%s\n", event_get_version())) <0)
-		exit(1);
+		return(1);
 
-	exit(0);
+	return(0);
 	]])],
 	[
 		libevent_library_ver=`cat conftest.libeventlibver`
@@ -2329,12 +2292,158 @@ AC_LINK_IFELSE(
 
 #AC_SEARCH_LIBS([bufferevent_openssl_socket_new], [event event_openssl], [])
 
-LIBS="$LIBS ${SSHDLIBS}"
-##end of chl
+AC_CHECK_HEADER([net/pfkeyv2.h], [
+	AC_MSG_CHECKING([for extended PFKEv2 crypto algorithms])
+	AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+		#include <sys/types.h>
+		#include <netinet/in.h>
+		#include <net/pfkeyv2.h>
+		#include <stdio.h>
+		#define DATA "conftest.pfkeyv2alg"
+	]], [[
+		FILE *fp;
+		int i;
+		struct pfkeyalgs {
+			const char *name;
+			const char *openbsd;
+			const char *target;
+		} algs[] = {
+			{ "blowfish", "SADB_X_EALG_BLF",
+#if defined(SADB_X_EALG_BLF)
+			    "SADB_X_EALG_BLF"
+#elif defined(SADB_X_EALG_BLOWFISHCBC)
+			    "SADB_X_EALG_BLOWFISHCBC"
+#else
+			    NULL
+#endif
+			},
+			{ "aes", "SADB_X_EALG_AES",
+#if defined(SADB_X_EALG_AES)
+			    "SADB_X_EALG_AES"
+#elif defined(SADB_X_EALG_AESCBC)
+			    "SADB_X_EALG_AESCBC"
+#elif defined(SADB_X_EALG_RIJNDAEL)
+			    "SADB_X_EALG_RIJNDAELCBC"
+#else
+			    NULL
+#endif
+			},			
+			{ "cast", "SADB_X_EALG_CAST",
+#if defined(SADB_X_EALG_CAST)
+			    "SADB_X_EALG_CAST"
+#elif defined(SADB_X_EALG_CAST128CBC)
+			    "SADB_X_EALG_CAST128CBC"
+#else
+			    NULL
+#endif
+			},
+			{ "aes-gcm16", "SADB_X_EALG_AESGCM16",
+#if defined(SADB_X_EALG_AESGCM16)
+			    "SADB_X_EALG_AESGCM16"
+#elif defined(SADB_X_EALG_AES_GCM_ICV16)
+			    "SADB_X_EALG_AES_GCM_ICV16"
+#else
+			    NULL
+#endif
+			},			
+			{ "sha2-256", "SADB_X_AALG_SHA2_256",
+#if defined(SADB_X_AALG_SHA2_256)
+			    "SADB_X_AALG_SHA2_256",
+#elif defined(SADB_X_AALG_SHA2_256HMAC)
+			    "SADB_X_AALG_SHA2_256HMAC"
+#else
+			    NULL
+#endif
+			},			
+			{ "sha2-384", "SADB_X_AALG_SHA2_384",
+#if defined(SADB_X_AALG_SHA2_384)
+			    "SADB_X_AALG_SHA2_384",
+#elif defined(SADB_X_AALG_SHA2_384HMAC)
+			    "SADB_X_AALG_SHA2_384HMAC"
+#else
+			    NULL
+#endif
+			},			
+			{ "sha2-512", "SADB_X_AALG_SHA2_512",
+#if defined(SADB_X_AALG_SHA2_512)
+			    "SADB_X_AALG_SHA2_512",
+#elif defined(SADB_X_AALG_SHA2_512HMAC)
+			    "SADB_X_AALG_SHA2_512HMAC"
+#else
+			    NULL
+#endif
+			},			
+			{ NULL }
+		};
+
+		if ((fp = fopen(DATA, "w")) == NULL)
+			return(1);
+
+		for (i = 0; algs[i].name != NULL; i++) {
+			if (algs[i].target == NULL)
+				continue;
+			(void)fprintf(fp, "%s\t%s\t%s\n",
+				algs[i].name,
+				algs[i].openbsd,
+				algs[i].target);
+		}
+
+		fclose(fp);
+	]])],
+	[
+		pfkeyv2_algs=`$AWK '{ print $1 }' conftest.pfkeyv2alg`
+		p_values=""
+
+		for i in $pfkeyv2_algs; do
+			p_alg=`$GREP $i conftest.pfkeyv2alg`
+			p_name=`echo $p_alg | $AWK '{print $1}'`
+			p_openbsd=`echo $p_alg | $AWK '{print $2}'`
+			p_target=`echo $p_alg | $AWK '{print $3}'`
+			p_values="$p_values $p_target"
+			if test "x$p_openbsd" != "x$p_target"; then
+				AC_DEFINE([$p_openbsd], [$p_target], [""])
+			fi
+		done
+
+		AC_MSG_RESULT([$p_values])
+	],
+	[
+		AC_MSG_RESULT([failed])
+		AC_MSG_ERROR([PFKEv2 compilation failed.])
+	], [])
+], [], [
+#include <sys/types.h>
+#include <netinet/in.h>
+])
+
+if test "x$OPENSSL" != "x"; then
+	AC_DEFINE_UNQUOTED([PATH_OPENSSL], ["$OPENSSL"],
+		["Path to OpenSSL binary])
+fi
+AC_DEFINE_UNQUOTED([SSLDIR], ["$SSLDIR"], [OpenSSL Configuration Directory])
+
+if test "x$TAR" != "x"; then
+	AC_DEFINE_UNQUOTED([PATH_TAR], ["$TAR"], ["Path to TAR binary])
+fi
+if test "x$ZIP" != "x"; then
+	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], ["Path to ZIP binary])
+fi
+
+AC_DEFINE_UNQUOTED([PREFIX], ["$PREFIX"], [Root directory prefix])
+
+AC_DEFINE([_GNU_SOURCE], [1], [Enable GNU Extensions])
+AC_DEFINE([_C99_SOURCE], [1], [Enable C99 Extensions])
+
+dnl Adding -Werror to CFLAGS early prevents configure tests from running.
+dnl Add now.
+CFLAGS="$CFLAGS $werror_flags $debug_flags"
+
+LIBS="$LIBS ${IKEDLIBS}"
 
 AC_CONFIG_FILES([Makefile
 		openbsd-compat/Makefile
 		iked/Makefile
+		ikectl/Makefile
 		])
 
 AC_OUTPUT
@@ -2361,7 +2470,7 @@ echo "                      Manual pages: $F"
 echo "                     iked.sock dir: $G"
 echo "  Privilege separation chroot path: $H"
 echo "                    Manpage format: $MANTYPE"
-echo "                       PAM support: $PAM_MSG"
+#echo "                       PAM support: $PAM_MSG"
 #echo "                   OSF SIA support: $SIA_MSG"
 #echo "                 KerberosV support: $KRB5_MSG"
 #echo "                   SELinux support: $SELINUX_MSG"

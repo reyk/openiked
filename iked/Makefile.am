@@ -51,8 +51,8 @@ install-exec-hook: $(CONFIGFILES) $(MANPAGES)
 	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
 	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)5
 
-	@if [ ! -f $(DESTDIR)$(sysconfdir)/smtpd.conf ]; then \
-		$(INSTALL) -m 644 smtpd.conf.out $(DESTDIR)$(sysconfdir)/smtpd.conf; \
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/iked.conf ]; then \
+		$(INSTALL) -m 644 iked.conf.out $(DESTDIR)$(sysconfdir)/iked.conf; \
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/iked.conf already exists, install will not overwrite"; \
 	fi

@@ -122,6 +122,14 @@ void setproctitle(const char *fmt, ...);
 void compat_init_setproctitle(int argc, char *argv[]);
 #endif
 
+#ifndef HAVE_SETRESGID
+int setresgid(uid_t rgid, uid_t egid, uid_t sgid);
+#endif
+
+#ifndef HAVE_SETRESUID
+int setresuid(uid_t ruid, uid_t euid, uid_t suid);
+#endif
+
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
 int BSDgetopt(int argc, char * const *argv, const char *opts);
 char	*BSDoptarg;		/* argument associated with option */

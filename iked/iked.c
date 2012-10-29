@@ -31,6 +31,11 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
+#ifdef HAVE_DEPRECATED_DAEMON
+/* Apple deprected daemon() and prints an warning that breaks -Werror */
+#define daemon XXX_daemon
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -44,6 +49,11 @@
 
 #include "iked.h"
 #include "ikev2.h"
+
+#ifdef HAVE_DEPRECATED_DAEMON
+#undef daemon
+extern int daemon(int, int);
+#endif
 
 __dead void usage(void);
 
@@ -59,6 +69,12 @@ static struct privsep_proc procs[] = {
 	{ "ikev2",	PROC_IKEV2, parent_dispatch_ikev2, ikev2 },
 	{ "ca",		PROC_CERT, parent_dispatch_ca, caproc, IKED_CA }
 };
+
+#ifndef HAVE_SETPROCTITLE
+/* Saved arguments to main(). */
+char **saved_argv;
+int saved_argc;
+#endif
 
 __dead void
 usage(void)
@@ -83,8 +99,21 @@ main(int argc, char *argv[])
 	log_init(1);
 
 #ifndef HAVE_SETPROCTITLE
+	/* Save argv. Duplicate so setproctitle emulation doesn't clobber it */
+	saved_argc = argc;
+	saved_argv = calloc(argc + 1, sizeof(*saved_argv));
+	if (saved_argv == NULL)
+		fatal("calloc: argv");
+	for (c = 0; c < argc; c++) {
+		saved_argv[c] = strdup(argv[c]);
+		if (saved_argv[c] == NULL)
+			fatal("strdup: saved_argv[c]");
+	}
+	saved_argv[c] = NULL;
+
 	/* Prepare for later setproctitle emulation */
 	compat_init_setproctitle(argc, argv);
+	argv = saved_argv;
 #endif
 
 	while ((c = getopt(argc, argv, "dD:nf:vSTt")) != -1) {

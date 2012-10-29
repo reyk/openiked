@@ -48,7 +48,7 @@ available_fds(int n)
 {
 	int		i, ret, fds[256];
 
-	if (n > (sizeof(fds)/sizeof(fds[0])))
+	if (n > (int)(sizeof(fds)/sizeof(fds[0])))
 		return (1);
 
 	ret = 0;

@@ -16,6 +16,13 @@
 
 #include "includes.h"
 
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
+#ifdef HAVE_ERR_H
+# include <err.h>
+#endif
 
 #ifndef HAVE_SETRESGID
 int setresgid(uid_t rgid, uid_t egid, uid_t sgid)
@@ -23,15 +30,15 @@ int setresgid(uid_t rgid, uid_t egid, uid_t sgid)
 
 #if defined(HAVE_SETRESGID) && !defined(BROKEN_SETRESGID)
 	if (setresgid(rgid, egid, sgid) < 0)
-		fatal("setresgid %u: %.100s", (u_int)rgid, strerror(errno));
+		err(1, "setresgid %u", (u_int)rgid);
 #elif defined(HAVE_SETREGID) && !defined(BROKEN_SETREGID)
 	if (setregid(rgid, egid) < 0)
-		fatal("setregid %u: %.100s", (u_int)rgid, strerror(errno));
+		err(1, "setregid %u", (u_int)rgid);
 #else
 	if (setegid(egid) < 0)
-		fatal("setegid %u: %.100s", (u_int)egid, strerror(errno));
+		err(1, "setegid %u", (u_int)egid);
 	if (setgid(rgid) < 0)
-		fatal("setgid %u: %.100s", (u_int)rgid, strerror(errno));
+		err(1, "setgid %u", (u_int)rgid);
 #endif
 	return (0);
 }
@@ -45,17 +52,17 @@ int setresuid(uid_t ruid, uid_t euid, uid_t suid)
 
 #if defined(HAVE_SETRESUID) && !defined(BROKEN_SETRESUID)
 	if (setresuid(ruid, euid, suid) < 0)
-		fatal("setresuid %u: %.100s", (u_int)ruid, strerror(errno));
+		err(1, "setresuid %u", (u_int)ruid);
 #elif defined(HAVE_SETREUID) && !defined(BROKEN_SETREUID)
 	if (setreuid(ruid, euid) < 0)
-		fatal("setreuid %u: %.100s", (u_int)ruid, strerror(errno));
+		err(1, "setreuid %u", (u_int)ruid);
 #else
 # ifndef SETEUID_BREAKS_SETUID
 	if (seteuid(euid) < 0)
-		fatal("seteuid %u: %.100s", (u_int)euid, strerror(errno));
+		err(1, "seteuid %u", (u_int)euid);
 # endif
 	if (setuid(ruid) < 0)
-		fatal("setuid %u: %.100s", (u_int)ruid, strerror(errno));
+		err(1, "setuid %u", (u_int)ruid);
 #endif
 	return (0);
 }
