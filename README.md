@@ -41,8 +41,7 @@ Installation
 TODO!
 
 (This portable version of iked currently compiles on OSX 10.8
-with MacPorts using the ports openssl, libevent1 and bmake.  The
-Makefiles are written for BSD make, aka. bmake.)
+with MacPorts using the ports openssl and libevent1.)
 
 Supported Platforms
 -------------------
