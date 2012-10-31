@@ -45,7 +45,7 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 	conffile=`echo $@ | sed 's/.out$$//'`; \
 	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
 
-install-exec-hook: $(CONFIGFILES) $(MANPAGES)
+install-exec-hook: $(CONFIGFILES) #$(MANPAGES)
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/iked/
 	$(MKDIR_P) $(DESTDIR)$(sbindir)
 	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
