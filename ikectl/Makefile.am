@@ -12,6 +12,7 @@ CPPFLAGS=	-include $(top_srcdir)/openbsd-compat/includes.h \
 MANPAGES=	ikectl.8.out
 MANPAGES_IN=	ikectl.8
 EXTRA_DIST=	$(MANPAGES_IN) ikeca.cnf
+CLEANFILES=	$(CONFIGFILES) $(MANPAGES)
 PATHSUBS=	-e 's|/etc/iked/|$(sysconfdir)/iked/|g'			\
 		-e 's|/usr/libexec|$(libexecdir)|g'			\
 		-e 's|/var/run/iked.sock|$(sockdir)/iked.sock|g'
@@ -24,7 +25,7 @@ $(MANPAGES): $(MANPAGES_IN)
 		manpage=$(srcdir)/`echo $@ | sed 's/\.out$$//'`; \
 	fi; \
 	if test "$(MANTYPE)" = "man"; then \
-		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
+		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(top_srcdir)/mdoc2man.awk > $@; \
 	else \
 		$(FIXPATHSCMD) $${manpage} > $@; \
 	fi

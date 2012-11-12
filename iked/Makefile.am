@@ -16,6 +16,7 @@ MANPAGES_IN=	iked.8 iked.conf.5
 CONFIGFILES=	iked.conf.out
 CONFIGFILES_IN=	iked.conf
 EXTRA_DIST=	$(CONFIGFILES_IN) $(MANPAGES_IN)
+CLEANFILES=	$(CONFIGFILES) $(MANPAGES)
 PATHSUBS=	-e 's|/etc/iked/|$(sysconfdir)/iked/|g'			\
 		-e 's|/usr/libexec|$(libexecdir)|g'			\
 		-e 's|/var/run/iked.sock|$(sockdir)/iked.sock|g'
@@ -36,7 +37,7 @@ $(MANPAGES): $(MANPAGES_IN)
 		manpage=$(srcdir)/`echo $@ | sed 's/\.out$$//'`; \
 	fi; \
 	if test "$(MANTYPE)" = "man"; then \
-		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
+		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(top_srcdir)/mdoc2man.awk > $@; \
 	else \
 		$(FIXPATHSCMD) $${manpage} > $@; \
 	fi
@@ -45,7 +46,7 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 	conffile=`echo $@ | sed 's/.out$$//'`; \
 	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
 
-install-exec-hook: $(CONFIGFILES) #$(MANPAGES)
+install-exec-hook: $(CONFIGFILES) $(MANPAGES)
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/iked/
 	$(MKDIR_P) $(DESTDIR)$(sbindir)
 	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
@@ -58,4 +59,4 @@ install-exec-hook: $(CONFIGFILES) #$(MANPAGES)
 	fi
 
 	$(INSTALL) -m 644 iked.8.out		$(DESTDIR)$(mandir)/$(mansubdir)8/iked.8
-	$(INSTALL) -m 644 iked.conf.5.out	$(DESTDIR)$(mandir)/$(mansubdir)5/ikedd.conf.5
+	$(INSTALL) -m 644 iked.conf.5.out	$(DESTDIR)$(mandir)/$(mansubdir)5/iked.conf.5

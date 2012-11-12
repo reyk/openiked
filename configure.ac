@@ -1636,9 +1636,9 @@ AC_ARG_WITH([mantype],
 if test -z "$MANTYPE"; then
 	TestPath="/usr/bin${PATH_SEPARATOR}/usr/ucb"
 	AC_PATH_PROGS([NROFF], [nroff awf], [/bin/false], [$TestPath])
-	if ${NROFF} -mdoc ${srcdir}/src/smtpd.8 >/dev/null 2>&1; then
+	if ${NROFF} -mdoc ${srcdir}/iked/iked.8 >/dev/null 2>&1; then
 		MANTYPE=doc
-	elif ${NROFF} -man ${srcdir}/src/smtpd.8 >/dev/null 2>&1; then
+	elif ${NROFF} -man ${srcdir}/iked/iked.8 >/dev/null 2>&1; then
 		MANTYPE=man
 	else
 		MANTYPE=cat
@@ -1689,7 +1689,7 @@ AC_DEFINE_UNQUOTED([IKED_CA], ["$ikedca"],
 	[certificate path])
 AC_SUBST([IKED_CA])
 
-# Where to place smtpd.sock
+# Where to place iked.sock
 sockdir=/var/run
 # make sure the directory exists
 if test ! -d $sockdir ; then
@@ -1700,7 +1700,7 @@ if test ! -d $sockdir ; then
 fi
 
 AC_ARG_WITH([sock-dir],
-	[  --with-sock-dir=PATH     Specify location of smtpd.sock file],
+	[  --with-sock-dir=PATH     Specify location of iked.sock file],
 	[
 		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
 		    test "x${withval}" != "xyes"; then
@@ -1713,7 +1713,7 @@ AC_ARG_WITH([sock-dir],
 )
 
 AC_DEFINE_UNQUOTED([IKED_SOCKDIR], ["$sockdir"], 
-	[Specify location of smtpd.sock])
+	[Specify location of iked.sock])
 AC_SUBST([sockdir])
 
 if test "x$ac_cv_func_getaddrinfo" != "xyes" ; then
