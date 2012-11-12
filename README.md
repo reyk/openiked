@@ -33,15 +33,36 @@ src/usr.sbin/ikectl directories of the OpenBSD CVS repository:
 
 * http://www.openbsd.org/cgi-bin/cvsweb/src/sbin/iked/
 * http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/ikectl/
-* See also: http://www.openbsd.org/anoncvs.html
+* See also: http://www.openiked.org/
 
 Installation
 ------------
 
-TODO!
+The portable version of OpenIKED uses the GNU autoconf environment to
+build and install from the sources.  As usual, follow these basic
+steps to install OpenIKED:
 
-(This portable version of iked currently compiles on OSX 10.8
-with MacPorts using the ports openssl and libevent1.)
+1. Requirements:
+* Make sure that the external libraries OpenSSL (version 1.0 or newer)
+and libevent (version 1.4 or newer) with their header files are
+installed.
+* If you're checking out the sources from the Git repository, you will
+also need GNU automake, autoconf (version 2.69 or newer) and libtool.
+
+2. Enter the top directory of the extracted sources.
+
+3. If you checked out the sources from the Git repository, run
+`sh bootstrap' to generate the required build files.
+
+4. Run `./configure' in this directory the generate the Makefiles.
+* `./configure --help' will show you some available build options.
+* For example, you can run the following when building on Apple OSX with
+MacPorts: `./configure --with-ssl-dir=/opt/local/ --with-libevent-dir=/opt/local/lib/libevent1/ --prefix=/opt/local/ --with-privsep-user=_unknown'
+
+5. Type `make' to build all parts of OpenIKED including iked and ikectl.
+
+6. Type `make install' to install OpenIKED, or `sudo make install' if
+you didn't compile OpenIKED as root. 
 
 Supported Platforms
 -------------------
@@ -52,7 +73,7 @@ Original version:
 
 Portable version:
 
-* Darwin (OS X Mountain Lion 10.8)
+* Apple Darwin (OSX Mountain Lion 10.8)
 * TODO: more PFKEYv2/KAME-based platforms, maybe Linux.
 
 Authors
