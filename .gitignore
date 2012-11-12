@@ -26,3 +26,6 @@ missing
 parse.c
 stamp-h1
 ylwrap
+iked
+ikectl
+*_map.c
