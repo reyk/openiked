@@ -1,9 +1,11 @@
 sbin_PROGRAMS=	iked
 
+iked_MAPS=	eap_map.c ikev2_map.c
+iked_MAPS_IN=	eap.h ikev2.h
 iked_SOURCES=	ca.c chap_ms.c config.c control.c crypto.c dh.c \
 		eap.c iked.c ikev1.c ikev2.c ikev2_msg.c ikev2_pld.c \
 		log.c pfkey.c policy.c proc.c timer.c util.c imsg_util.c \
-		eap_map.c ikev2_map.c parse.y
+		parse.y $(iked_MAPS)
 iked_CFLAGS=
 
 LIBCOMPAT=	$(top_builddir)/openbsd-compat/libopenbsd-compat.a
@@ -16,18 +18,16 @@ MANPAGES_IN=	iked.8 iked.conf.5
 CONFIGFILES=	iked.conf.out
 CONFIGFILES_IN=	iked.conf
 EXTRA_DIST=	$(CONFIGFILES_IN) $(MANPAGES_IN)
-CLEANFILES=	$(CONFIGFILES) $(MANPAGES)
+CLEANFILES=	$(iked_MAPS) $(CONFIGFILES) $(MANPAGES)
 PATHSUBS=	-e 's|/etc/iked/|$(sysconfdir)/iked/|g'			\
 		-e 's|/usr/libexec|$(libexecdir)|g'			\
 		-e 's|/var/run/iked.sock|$(sockdir)/iked.sock|g'
 FIXPATHSCMD=	$(SED) $(PATHSUBS)
 
-ikev2_map.c: genmap.sh ikev2.h
-	$(SH) genmap.sh $(srcdir)/ikev2.h ikev2 > $@
-	@touch $@
-
-eap_map.c: genmap.sh eap.h
-	$(SH) genmap.sh $(srcdir)/eap.h eap > $@
+$(iked_MAPS): genmap.sh $(iked_MAPS_IN)
+	mapname=`echo $@ | sed 's/_map\.c$$//'`; \
+	hdrname=$${mapname}.h; \
+	$(SH) genmap.sh $${hdrname} $${mapname} > $@
 	@touch $@
 
 $(MANPAGES): $(MANPAGES_IN)
