@@ -43,11 +43,11 @@ build and install from the sources.  As usual, follow these basic
 steps to install OpenIKED:
 
 1. Requirements:
-    * Make sure that the external libraries OpenSSL (version 1.0 or newer)
+    - Make sure that the external libraries OpenSSL (version 1.0 or newer)
 and libevent (version 1.4 or newer) with their header files are
 installed.
-    * If you're checking out the sources from the Git repository, you will
-also need GNU automake, autoconf (version 2.69 or newer) and libtool.
+    - If you're checking out the sources from the Git repository, you will
+also need GNU automake, autoconf (version 2.69 or newer) and libtool.  
 
 2. Enter the top directory of the extracted sources.
 
@@ -55,9 +55,12 @@ also need GNU automake, autoconf (version 2.69 or newer) and libtool.
 `sh bootstrap` to generate the required build files.
 
 4. Run `./configure` in this directory the generate the Makefiles.
-    * `./configure --help` will show you some available build options.
-    * For example, you can run the following when building on Apple OSX
-with MacPorts: `./configure --with-ssl-dir=/opt/local/ --with-libevent-dir=/opt/local/lib/libevent1/ --prefix=/opt/local/ --with-privsep-user=_unknown`
+    - `./configure --help` will show you some available build options.
+    - For example, you can run the following when building on Apple OSX
+with MacPorts:
+	./configure --with-ssl-dir=/opt/local/ \
+	--with-libevent-dir=/opt/local/lib/libevent1/ \
+	--prefix=/opt/local/ --with-privsep-user=_unknown
 
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
 
