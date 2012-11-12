@@ -223,6 +223,9 @@ int
 parent_configure(struct iked *env)
 {
 	struct sockaddr_storage	 ss;
+#if defined(HAVE_APPLE_NATT)
+	int			 udpencap;
+#endif
 
 	if (parse_config(env->sc_conffile, env) == -1) {
 		proc_kill(&env->sc_ps);
@@ -244,6 +247,15 @@ parent_configure(struct iked *env)
 
 	bzero(&ss, sizeof(ss));
 	ss.ss_family = AF_INET;
+
+#if defined(HAVE_APPLE_NATT)
+	if ((env->sc_opts & IKED_OPT_NONATT) == 0) {
+		udpencap = IKED_NATT_PORT;
+		if (sysctlbyname("net.inet.ipsec.esp_port", NULL, NULL,
+		    &udpencap, sizeof(udpencap)) != 0)
+			fatalx("failed to set NAT-T port");
+	}
+#endif
 
 	if ((env->sc_opts & IKED_OPT_NATT) == 0)
 		config_setsocket(env, &ss, ntohs(IKED_IKE_PORT), PROC_IKEV2);

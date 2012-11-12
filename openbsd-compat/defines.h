@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2012 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -355,6 +356,22 @@ struct winsize {
 #define htobe16	OSSwapHostToBigInt16
 #define htobe32	OSSwapHostToBigInt32
 #define htobe64	OSSwapHostToBigInt64
+#endif
+
+#if defined(HAVE_APPLE_NATT) && !defined(SADB_X_EXT_NATT)
+/*
+ * These are hidden in Apple XNU's private pfkeyv2.h header
+ */
+#define SADB_X_EXT_NATT			0x0002	/* Enable UDP encapsulation */
+#define SADB_X_EXT_NATT_KEEPALIVE	0x0004	/* Send NAT-T keepalives */
+#define SADB_X_EXT_NATT_MULTIPLEUSERS	0x0008	/* Use for VPN gateways */
+#define SADB_X_EXT_NATT_DETECTED_PEER	0x1000	/* Opposite of KEEPALIVE */
+
+struct sadb_sa_natt {
+	u_int16_t	 sadb_sa_natt_port;
+	u_int16_t	 sadb_reserved;
+	u_int32_t	 sadb_reserved1;
+};
 #endif
 
 /* Paths */

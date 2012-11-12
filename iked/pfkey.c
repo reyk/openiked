@@ -130,16 +130,6 @@ static const struct pfkey_constmap pfkey_satype[] = {
 	{ 0 }
 };
 
-#if defined(SADB_X_EXT_NATT)
-/* This is hidden in Apple's private pfkeyv2.h header */
-struct sadb_sa_2 {
-	struct sadb_sa	 sa;
-	u_int16_t	 sadb_sa_natt_port;
-	u_int16_t	 sadb_reserved;
-	u_int32_t	 sadb_reserved1;
-};
-#endif
-
 int	pfkey_map(const struct pfkey_constmap *, u_int16_t, u_int8_t *);
 int	pfkey_flow(int, u_int8_t, u_int8_t, struct iked_flow *);
 int	pfkey_sa(int, u_int8_t, u_int8_t, struct iked_childsa *);
@@ -649,6 +639,9 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	struct sadb_x_tap	 sa_tap;
 #else
 	struct sadb_x_sa2	 sa_2;
+#if defined(HAVE_APPLE_NATT)
+	struct sadb_sa_natt	 natt;
+#endif
 #endif
 	struct sockaddr_storage	 ssrc, sdst;
 	struct sadb_ident	*sa_srcid, *sa_dstid;
@@ -721,6 +714,8 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	bzero(&sa_enckey, sizeof(sa_enckey));
 #if defined(_OPENBSD_IPSEC_API_VERSION)
 	bzero(&udpencap, sizeof udpencap);
+#elif defined(HAVE_APPLE_NATT)
+	bzero(&natt, sizeof(natt));
 #endif
 	bzero(&sa_ltime_hard, sizeof(sa_ltime_hard));
 	bzero(&sa_ltime_soft, sizeof(sa_ltime_soft));
@@ -765,14 +760,21 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 		udpencap.sadb_x_udpencap_len = sizeof(udpencap) / 8;
 		udpencap.sadb_x_udpencap_port =
 		    sa->csa_ikesa->sa_peer.addr_port;
-
-		log_debug("%s: udpencap port %d", __func__,
-		    ntohs(udpencap.sadb_x_udpencap_port));
+#elif defined(HAVE_APPLE_NATT)
+		sadb.sadb_sa_flags |= SADB_X_EXT_NATT;
+		/* XXX check NAT detection for local/peer hash instead */
+		if (sa->csa_dir == IPSP_DIRECTION_OUT)
+			sadb.sadb_sa_flags |= SADB_X_EXT_NATT_KEEPALIVE;
+		else
+			sadb.sadb_sa_flags |= SADB_X_EXT_NATT_DETECTED_PEER;
+		natt.sadb_sa_natt_port =
+		    ntohs(sa->csa_ikesa->sa_peer.addr_port);
+		sadb.sadb_sa_len += sizeof(natt) / 8;
 #else
-		/* sadb.sadb_sa_flags |= SADB_X_EXT_NATT; */
-		/* XXX SADB_X_EXT_NATT_KEEPALIVE */
-		/* XXX SADB_X_EXT_NATT_DETECTED_PEER */
+#warning NAT-T not supported
 #endif
+		log_debug("%s: udpencap port %u", __func__,
+		    ntohs(sa->csa_ikesa->sa_peer.addr_port));
 	}
 
 	if (sa->csa_integrxf)
@@ -845,6 +847,11 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	/* sa */
 	iov[iov_cnt].iov_base = &sadb;
 	iov[iov_cnt].iov_len = sizeof(sadb);
+#if defined(HAVE_APPLE_NATT)
+	iov_cnt++;
+	iov[iov_cnt].iov_base = &natt;
+	iov[iov_cnt].iov_len = sizeof(natt);
+#endif
 	smsg.sadb_msg_len += sadb.sadb_sa_len;
 	iov_cnt++;
 

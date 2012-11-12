@@ -211,6 +211,11 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		supported by setproctitle.c])
 	# IPv6 compatibility
 	AC_DEFINE([__APPLE_USE_RFC_3542], [1], [Use RFC3542 IPv6 API])
+
+	# We cannot check if NAT-T is really supported by the kernel because
+	# it is not exposed in the public version of the pfkeyv2.h header.
+	AC_DEFINE([HAVE_APPLE_NATT], [1], [Use Apple's NAT-T support])
+
 	ac_deprecated_daemon=yes
 	;;
 *-*-dragonfly*)
