@@ -59,7 +59,6 @@ with MacPorts:
     ./configure --with-ssl-dir=/opt/local/
         --with-libevent-dir=/opt/local/lib/libevent1/
         --prefix=/opt/local/
-        --with-privsep-user=_unknown
 ```
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
 6. Type `make install` to install OpenIKED, or `sudo make install` if
