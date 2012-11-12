@@ -55,11 +55,7 @@ also need GNU automake, autoconf (version 2.69 or newer) and libtool.
     - `./configure --help` will show you some available build options.
     - For example, you can run the following when building on Apple OSX
 with MacPorts:
-
-	./configure --with-ssl-dir=/opt/local/ \
-	--with-libevent-dir=/opt/local/lib/libevent1/ \
-	--prefix=/opt/local/ --with-privsep-user=_unknown
-
+    ./configure --with-ssl-dir=/opt/local/ --with-libevent-dir=/opt/local/lib/libevent1/ --prefix=/opt/local/ --with-privsep-user=_unknown
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
 6. Type `make install` to install OpenIKED, or `sudo make install` if
 you didn't compile OpenIKED as root. 
