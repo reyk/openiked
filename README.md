@@ -51,12 +51,12 @@ also need GNU automake, autoconf (version 2.69 or newer) and libtool.
 2. Enter the top directory of the extracted sources.
 3. If you checked out the sources from the Git repository, run
 `sh bootstrap` to generate the required build files.
-4. Run `./configure` in this directory the generate the Makefiles.
+4. Run `./configure` in this directory to generate the Makefiles.
     - `./configure --help` will show you some available build options.
     - For example, you can run the following when building on Apple OSX
 with MacPorts:
 ```
-    MacBook:openiked user$ ./configure --with-ssl-dir=/opt/local/
+    ./configure --with-ssl-dir=/opt/local/
         --with-libevent-dir=/opt/local/lib/libevent1/
         --prefix=/opt/local/
         --with-privsep-user=_unknown
