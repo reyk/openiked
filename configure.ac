@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Reyk Floeter
+# Copyright (c) 2012 Reyk Floeter <reyk@openbsd.org>
 # Copyright (c) 1999-2004 Damien Miller
 #
 # Permission to use, copy, modify, and distribute this software for any
