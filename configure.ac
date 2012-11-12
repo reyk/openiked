@@ -157,6 +157,7 @@ AC_CHECK_HEADERS([\
 	sys/pstat.h \
 	sys/socket.h \
 	sys/stat.h \
+	sys/sysctl.h \
 	sys/types.h \
 	sys/uio.h \
 	sys/un.h \
