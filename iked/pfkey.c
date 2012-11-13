@@ -769,7 +769,6 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 			sadb.sadb_sa_flags |= SADB_X_EXT_NATT_DETECTED_PEER;
 		natt.sadb_sa_natt_port =
 		    ntohs(sa->csa_ikesa->sa_peer.addr_port);
-		sadb.sadb_sa_len += sizeof(natt) / 8;
 #else
 #warning NAT-T not supported
 #endif
@@ -848,9 +847,12 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	iov[iov_cnt].iov_base = &sadb;
 	iov[iov_cnt].iov_len = sizeof(sadb);
 #if defined(HAVE_APPLE_NATT)
-	iov_cnt++;
-	iov[iov_cnt].iov_base = &natt;
-	iov[iov_cnt].iov_len = sizeof(natt);
+	if (natt.sadb_sa_natt_port) {
+		iov_cnt++;
+		iov[iov_cnt].iov_base = &natt;
+		iov[iov_cnt].iov_len = sizeof(natt);
+		sadb.sadb_sa_len += sizeof(natt) / 8;
+	}
 #endif
 	smsg.sadb_msg_len += sadb.sadb_sa_len;
 	iov_cnt++;
