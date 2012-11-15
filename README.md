@@ -62,7 +62,7 @@ with MacPorts:
 ```
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
 6. Type `make install` to install OpenIKED, or `sudo make install` if
-you didn't compile OpenIKED as root. 
+you didn't compile OpenIKED as root.
 
 Supported Platforms
 -------------------
@@ -76,6 +76,45 @@ Portable version:
 * Apple Darwin (OSX Mountain Lion 10.8)
 * TODO: more PFKEYv2/KAME-based platforms, maybe Linux.
 
+Development
+-----------
+
+The source tree of OpenIKED contains the following directories:
+
+* `openiked/`:
+    Build scripts for automake/autoconf and README files.
+* `openiked/ikectl/`:
+    The control and status utility for iked.
+* `openiked/iked/`:
+    The IKEv2 daemon itself and some files that are shared with ikectl.
+* `openiked/openbsd-compat/`:
+    Portability glue and API functions for non-OpenBSD platforms.
+
+You can checkout the portable code from GitHub:
+
+```
+$ git clone git://github.com/reyk/openiked.git
+```
+
+And compare the contents of the `iked` and `ikectl` directories in
+the git repository with the original sources in OpenBSD's
+(Anon)CVS repository by running the `cvs diff` command in these
+subdirectories. This will show you the differences between the portable
+version and the unpatched OpenBSD version:
+
+```
+$ cd openiked/iked/
+$ cvs diff -Nup | tee ../iked.diff
+$ cd ../ikectl/
+$ cvs diff -Nup | tee ../ikectl.diff
+```
+
+Before you continue with looking at the code or writing any diffs, you
+should study OpenBSD's source style guide; or the "KNF". You can
+find it in OpenBSD's style(9) manpage or online at:
+http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9.
+Please also note that each line should be at most 80 characters long.
+
 Authors
 -------
 
@@ -86,3 +125,5 @@ WARNING
 -------
 
 This is work in progress!
+
+- Reyk
