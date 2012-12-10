@@ -146,3 +146,5 @@ is not standardized in PFKEYv2, not even on a semi-level, and differs
 in most operating systems, if supported at all. 
 
 - Reyk
+
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/thing/1038961/reykopeniked-on-GitHub)
