@@ -1,4 +1,4 @@
-.\" $OpenBSD: iked.8,v 1.10 2012/10/22 13:27:23 jmc Exp $
+.\" $OpenBSD: iked.8,v 1.12 2012/11/29 21:34:31 jmc Exp $
 .\" $vantronix: iked.8,v 1.5 2010/06/02 14:38:08 reyk Exp $
 .\"
 .\" Copyright (c) 2010 Reyk Floeter <reyk@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 22 2012 $
+.Dd $Mdocdate: November 29 2012 $
 .Dt IKED 8
 .Os
 .Sh NAME
@@ -23,7 +23,7 @@
 .Nd Internet Key Exchange version 2 (IKEv2) daemon
 .Sh SYNOPSIS
 .Nm iked
-.Op Fl dnSTtv
+.Op Fl 6dnSTtv
 .Oo
 .Fl D Ar macro Ns = Ns Ar value
 .Oc
@@ -59,6 +59,13 @@ infrastructure.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl 6
+Disable automatic blocking of IPv6 traffic.
+By default,
+.Nm
+blocks any IPv6 traffic unless a flow for this address family has been
+negotiated.
+This option is used to prevent VPN traffic leakages on dual stack hosts.
 .It Fl D Ar macro Ns = Ns Ar value
 Define
 .Ar macro
@@ -153,3 +160,26 @@ program was written by
 .Nm
 is not yet finished and is missing some important security features.
 It should not yet be used in production networks.
+.Sh BUGS
+The portable version of
+.Nm ,
+.Ic OpenIKED ,
+might have a few limitations on operating systems other than the most
+recent versions of
+.Ox .
+A major difference between
+.Ox
+and other systems is the API and availability of the IPsec PFKEYv2
+flow implementation (SADB) and message passing between kernel and
+.Nm .
+Current known limitations are:
+.Bl -tag -width Ds
+.It Ic Acquire Mode
+The SADB_ACQUIRE PFKEYv2 message is not implemented for KAME-based stacks.
+.It Ic VPN traffic leakage prevention
+Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
+.It Ic NAT-T
+NAT-T is only supported on OpenBSD and Darwin (OS X).
+The NAT-T API is not standardized in PFKEYv2, not even on a semi-level,
+and differs in most operating systems, if supported at all.
+.El

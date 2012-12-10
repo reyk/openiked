@@ -58,6 +58,18 @@ enum
 #define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND
 #endif
 
+#ifdef HAVE_NET_PFKEYV2_H
+#if !defined(SADB_X_ADDFLOW) && defined(SADB_X_SPDADD)
+#define SADB_X_ADDFLOW	SADB_X_SPDADD
+#endif
+#if !defined(SADB_X_DELFLOW) && defined(SADB_X_SPDDELETE)
+#define SADB_X_DELFLOW	SADB_X_SPDDELETE
+#endif
+#if !defined(SADB_X_FLOW_TYPE_DENY)
+#define SADB_X_FLOW_TYPE_DENY	1
+#endif
+#endif /* HAVE_NET_PFKEYV2_H */
+
 #ifndef MAXHOSTNAMELEN
 # define MAXHOSTNAMELEN  64
 #endif

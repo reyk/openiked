@@ -93,7 +93,7 @@
 #include <libkern/OSByteOrder.h>
 #endif
 
-#ifdef HAVE_APPLE_NATT
+#ifdef HAVE_NET_PFKEYV2_H
 #include <net/pfkeyv2.h>
 #endif
 
