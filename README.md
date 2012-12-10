@@ -134,17 +134,17 @@ OpenBSD and other systems is the API and availability of the IPsec
 PFKEYv2 flow implementation (SADB) and message passing between kernel
 and iked.  Current known limitations are:
 
-* Acquire Mode
+* Acquire Mode:
 The SADB_ACQUIRE PFKEYv2 message is not implemented for KAME-based stacks.
 
-* VPN traffic leakage prevention
+* VPN traffic leakage prevention:
 Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
 
-* NAT-T
+* NAT-T:
 NAT-T is only supported on OpenBSD and Darwin (OS X).  The NAT-T API
 is not standardized in PFKEYv2, not even on a semi-level, and differs
 in most operating systems, if supported at all. 
 
-/Reyk
+Reyk
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/thing/1038961/reykopeniked-on-GitHub)
