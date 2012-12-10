@@ -121,9 +121,28 @@ Authors
 * Reyk Floeter <reyk@openbsd.org>
 * Mike Belopuhov <mikeb@openbsd.org>
 
-WARNING
--------
+Caveats, bugs and limitations
+-----------------------------
 
-This is work in progress!
+This is work in progress!  OpenIKED is not yet finished and is missing
+some important security features.  It should not yet be used in
+production networks.
+
+OpenIKED might have a few limitations on operating systems other than
+the most recent versions of OpenBSD.  A major difference between
+OpenBSD and other systems is the API and availability of the IPsec
+PFKEYv2 flow implementation (SADB) and message passing between kernel
+and iked.  Current known limitations are:
+
+* Acquire Mode
+The SADB_ACQUIRE PFKEYv2 message is not implemented for KAME-based stacks.
+
+* VPN traffic leakage prevention
+Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
+
+* NAT-T
+NAT-T is only supported on OpenBSD and Darwin (OS X).  The NAT-T API
+is not standardized in PFKEYv2, not even on a semi-level, and differs
+in most operating systems, if supported at all. 
 
 - Reyk
