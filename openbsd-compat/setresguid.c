@@ -20,10 +20,6 @@
 # include <unistd.h>
 #endif
 
-#ifdef HAVE_ERR_H
-# include <err.h>
-#endif
-
 #ifndef HAVE_SETRESGID
 int setresgid(uid_t rgid, uid_t egid, uid_t sgid)
 {
