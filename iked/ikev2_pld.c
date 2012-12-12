@@ -957,7 +957,9 @@ ikev2_pld_ts(struct iked *env, struct ikev2_payload *pld,
 		case IKEV2_TS_IPV4_ADDR_RANGE:
 			bzero(&s4, sizeof(s4));
 			s4.sin_family = AF_INET;
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 			s4.sin_len = sizeof(s4);
+#endif
 			memcpy(&s4.sin_addr.s_addr,
 			    msgbuf + offset + sizeof(ts), 4);
 			print_host((struct sockaddr_storage *)&s4,
@@ -972,7 +974,9 @@ ikev2_pld_ts(struct iked *env, struct ikev2_payload *pld,
 		case IKEV2_TS_IPV6_ADDR_RANGE:
 			bzero(&s6, sizeof(s6));
 			s6.sin6_family = AF_INET6;
+#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 			s6.sin6_len = sizeof(s6);
+#endif
 			memcpy(&s6.sin6_addr,
 			    msgbuf + offset + sizeof(ts), 16);
 			print_host((struct sockaddr_storage *)&s6,

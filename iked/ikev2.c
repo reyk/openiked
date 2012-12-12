@@ -27,8 +27,6 @@
 #include <netinet/in.h>
 #if defined(__OpenBSD__)
 #include <netinet/ip_ipsp.h>
-#else
-#include <netinet6/ipsec.h>
 #endif
 #include <arpa/inet.h>
 
@@ -719,10 +717,10 @@ ikev2_init_ike_sa_peer(struct iked *env, struct iked_policy *pol,
 		if (socket_getaddr(sock->sock_fd, &ss) == -1)
 			goto done;
 	} else
-		memcpy(&ss, &pol->pol_local.addr, pol->pol_local.addr.ss_len);
+		memcpy(&ss, &pol->pol_local.addr, SS_LEN(&pol->pol_local.addr));
 
-	if ((buf = ikev2_msg_init(env, &req, &peer->addr, peer->addr.ss_len,
-	    &ss, ss.ss_len, 0)) == NULL)
+	if ((buf = ikev2_msg_init(env, &req, &peer->addr, SS_LEN(&peer->addr),
+	    &ss, SS_LEN(&ss), 0)) == NULL)
 		goto done;
 
 	/* Inherit the port from the 1st send socket */
@@ -4006,7 +4004,9 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 	case IKEV2_ID_IPV4:
 		s4 = (struct sockaddr_in *)buf;
 		s4->sin_family = AF_INET;
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 		s4->sin_len = sizeof(*s4);
+#endif
 		memcpy(&s4->sin_addr.s_addr, ptr, len);
 
 		if (print_host((struct sockaddr_storage *)s4,
@@ -4030,7 +4030,9 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 	case IKEV2_ID_IPV6:
 		s6 = (struct sockaddr_in6 *)buf;
 		s6->sin6_family = AF_INET6;
+#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 		s6->sin6_len = sizeof(*s6);
+#endif
 		memcpy(&s6->sin6_addr, ptr, len);
 
 		if (print_host((struct sockaddr_storage *)s6,

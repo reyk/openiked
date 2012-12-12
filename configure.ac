@@ -127,8 +127,10 @@ AC_ARG_WITH(debug,
 
 AC_CHECK_HEADERS([\
 	arpa/inet.h \
+	asm/byteorder.h \
 	ctype.h \
 	dirent.h \
+	endian.h \
 	err.h \
 	errno.h \
 	fcntl.h \
@@ -136,6 +138,10 @@ AC_CHECK_HEADERS([\
 	libkern/OSByteOrder.h \
 	ndir.h \
 	net/pfkeyv2.h \
+	linux/pfkeyv2.h \
+	linux/in.h \
+	linux/ipsec.h \
+	limits.h \
 	netdb.h \
 	netinet/in.h \
 	netinet/in_systm.h \
@@ -172,6 +178,9 @@ AC_CHECK_HEADERS([\
 AC_CHECK_HEADERS([login_cap.h], [], [], [
 #include <sys/types.h>
 ])
+
+pfkeyv2_h="net/pfkeyv2.h"
+IKED_USER=_iked
 
 # Check for some target-specific stuff
 case "$host" in
@@ -236,6 +245,8 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 			[Define if cmsg_type is not passed correctly])
 		;;
 	esac
+	pfkeyv2_h="linux/pfkeyv2.h"
+	IKED_USER=iked
 	;;
 *-*-netbsd*)
 	check_for_libcrypt_before=1
@@ -1671,7 +1682,6 @@ AC_ARG_WITH([bsd-auth],
 	]
 )
 
-IKED_USER=_iked
 AC_ARG_WITH([privsep-user],
 	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
 	[
@@ -1685,12 +1695,18 @@ AC_DEFINE_UNQUOTED([IKED_USER], ["$IKED_USER"],
 	[non-privileged user for privilege separation])
 AC_SUBST([IKED_USER])
 
-ikedconf=`eval echo ${sysconfdir}/iked.conf`
+_sysconfdir=`eval echo ${sysconfdir}`
+case $_sysconfdir in
+NONE/*)
+	_sysconfdir=`echo $_sysconfdir | sed "s~NONE~$ac_default_prefix~"` ;;
+esac
+
+ikedconf=`eval echo ${_sysconfdir}/iked.conf`
 AC_DEFINE_UNQUOTED([IKED_CONFIG], ["$ikedconf"],
 	[configuration file path])
 AC_SUBST([IKED_CONFIG])
 
-ikedca=`eval echo $sysconfdir/iked/`
+ikedca=`eval echo ${_sysconfdir}/iked/`
 AC_DEFINE_UNQUOTED([IKED_CA], ["$ikedca"],
 	[certificate path])
 AC_SUBST([IKED_CA])
@@ -1699,10 +1715,7 @@ AC_SUBST([IKED_CA])
 sockdir=/var/run
 # make sure the directory exists
 if test ! -d $sockdir ; then
-	sockdir=`eval echo ${sysconfdir}`
-	case $sockdir in
-		NONE/*) sockdir=`echo $sockdir | sed "s~NONE~$ac_default_prefix~"` ;;
-	esac
+	sockdir=`eval echo ${_sysconfdir}`
 fi
 
 AC_ARG_WITH([sock-dir],
@@ -2298,12 +2311,12 @@ AC_LINK_IFELSE(
 
 #AC_SEARCH_LIBS([bufferevent_openssl_socket_new], [event event_openssl], [])
 
-AC_CHECK_HEADER([net/pfkeyv2.h], [
+AC_CHECK_HEADER([$pfkeyv2_h], [
 	AC_MSG_CHECKING([for extended PFKEv2 crypto algorithms])
 	AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 		#include <sys/types.h>
 		#include <netinet/in.h>
-		#include <net/pfkeyv2.h>
+		#include <$pfkeyv2_h>
 		#include <stdio.h>
 		#define DATA "conftest.pfkeyv2alg"
 	]], [[
@@ -2399,17 +2412,22 @@ AC_CHECK_HEADER([net/pfkeyv2.h], [
 	[
 		pfkeyv2_algs=`$AWK '{ print $1 }' conftest.pfkeyv2alg`
 		p_values=""
+		p_flags=""
 
 		for i in $pfkeyv2_algs; do
 			p_alg=`$GREP $i conftest.pfkeyv2alg`
 			p_name=`echo $p_alg | $AWK '{print $1}'`
 			p_openbsd=`echo $p_alg | $AWK '{print $2}'`
 			p_target=`echo $p_alg | $AWK '{print $3}'`
-			p_values="$p_values $p_target"
+			p_values="$p_values $p_name"
 			if test "x$p_openbsd" != "x$p_target"; then
-				AC_DEFINE([$p_openbsd], [$p_target], [""])
+				# XXX AC_DEFINE_UNQUOTED will not work here
+				p_flags="$p_flags -D$p_openbsd=$p_target"
 			fi
 		done
+
+		PFKEY_CPPFLAGS=`eval echo $p_flags`
+		AC_SUBST([PFKEY_CPPFLAGS])
 
 		AC_MSG_RESULT([$p_values])
 	],
@@ -2424,15 +2442,15 @@ AC_CHECK_HEADER([net/pfkeyv2.h], [
 
 if test "x$OPENSSL" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_OPENSSL], ["$OPENSSL"],
-		["Path to OpenSSL binary])
+		[Path to OpenSSL binary])
 fi
 AC_DEFINE_UNQUOTED([SSLDIR], ["$SSLDIR"], [OpenSSL Configuration Directory])
 
 if test "x$TAR" != "x"; then
-	AC_DEFINE_UNQUOTED([PATH_TAR], ["$TAR"], ["Path to TAR binary])
+	AC_DEFINE_UNQUOTED([PATH_TAR], ["$TAR"], [Path to TAR binary])
 fi
 if test "x$ZIP" != "x"; then
-	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], ["Path to ZIP binary])
+	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], [Path to ZIP binary])
 fi
 
 AC_DEFINE_UNQUOTED([PREFIX], ["$PREFIX"], [Root directory prefix])
@@ -2464,17 +2482,20 @@ D=`eval echo ${sysconfdir}` ; D=`eval echo ${D}`
 F=`eval echo ${mandir}/${mansubdir}X` ; F=`eval echo ${F}`
 G=`eval echo ${sockdir}` ; G=`eval echo ${G}`
 H=`eval echo ${PRIVSEP_PATH}` ; H=`eval echo ${H}`
-I=`eval echo ${user_path}` ; I=`eval echo ${I}`
-J=`eval echo ${superuser_path}` ; J=`eval echo ${J}`
+I=`eval echo ${ikedconf}` ; I=`eval echo ${I}`
+J=`eval echo ${ikedca}` ; J=`eval echo ${J}`
 
 echo ""
 echo "OpenIKED has been configured with the following options:"
 echo "                     User binaries: $B"
 echo "                   System binaries: $C"
 echo "               Configuration files: $D"
+echo "               Configuration files: $D"
 echo "                      Manual pages: $F"
 echo "                     iked.sock dir: $G"
 echo "  Privilege separation chroot path: $H"
+echo "       OpenIKED configuration file: $I"
+echo "    OpenIKED CA and keys directory: $J"
 echo "                    Manpage format: $MANTYPE"
 #echo "                       PAM support: $PAM_MSG"
 #echo "                   OSF SIA support: $SIA_MSG"

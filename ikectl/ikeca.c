@@ -444,8 +444,8 @@ ca_show_certs(struct ca *ca, char *name)
 		err(1, "could not open directory %s", ca->sslpath);
 
 	while ((de = readdir(dir)) != NULL) {
-		if (de->d_namlen > 4) {
-			p = de->d_name + de->d_namlen - 4;
+		if (NAMLEN(de) > 4) {
+			p = de->d_name + NAMLEN(de) - 4;
 			if (strcmp(".crt", p) != 0)
 				continue;
 			snprintf(path, sizeof(path), "%s/%s", ca->sslpath,

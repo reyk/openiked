@@ -1743,7 +1743,9 @@ host_v4(const char *s, int mask)
 		err(1, "host_v4: calloc");
 
 	ina.sin_family = AF_INET;
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 	ina.sin_len = sizeof(ina);
+#endif
 	memcpy(&ipa->address, &ina, sizeof(ina));
 
 	ipa->name = strdup(s);

@@ -53,12 +53,13 @@ enum
 # define IPTOS_MINCOST           IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
 
-#if !defined(HAVE_NETINET_IP_IPSP_H) && defined (HAVE_NETINET6_IPSEC_H)
+#if !defined(HAVE_NETINET_IP_IPSP_H) && \
+    (defined(HAVE_NETINET6_IPSEC_H) || defined(HAVE_LINUX_IPSEC_H))
 #define IPSP_DIRECTION_IN	IPSEC_DIR_INBOUND
-#define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND
+#define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND	/* XXX Linux: _FWD? */
 #endif
 
-#ifdef HAVE_NET_PFKEYV2_H
+#if defined(HAVE_NET_PFKEYV2_H) || defined(HAVE_LINUX_PFKEYV2_H)
 #if !defined(SADB_X_ADDFLOW) && defined(SADB_X_SPDADD)
 #define SADB_X_ADDFLOW	SADB_X_SPDADD
 #endif
@@ -68,7 +69,7 @@ enum
 #if !defined(SADB_X_FLOW_TYPE_DENY)
 #define SADB_X_FLOW_TYPE_DENY	1
 #endif
-#endif /* HAVE_NET_PFKEYV2_H */
+#endif /* HAVE_NET_PFKEYV2_H || HAVE_LINUX_PFKEYV2_H */
 
 #ifndef MAXHOSTNAMELEN
 # define MAXHOSTNAMELEN  64
@@ -337,6 +338,10 @@ struct	sockaddr_un {
 };
 #endif /* HAVE_SYS_UN_H */
 
+#if !defined(AF_LINK) && defined(AF_PACKET)
+#define AF_LINK	AF_PACKET		/* XXX workaround on Linux */
+#endif
+
 #ifndef HAVE_IN_ADDR_T
 typedef u_int32_t	in_addr_t;
 #endif
@@ -360,14 +365,18 @@ struct winsize {
  typedef unsigned long int	fd_mask;
 #endif
 
+#if defined(HAVE_LIBKERN_OSBYTEORDER_H)
 /* Byte conversion on OS X */
-#ifdef HAVE_LIBKERN_OSBYTEORDER_H
 #define betoh16	OSSwapBigToHostInt16
 #define betoh32	OSSwapBigToHostInt32
 #define betoh64	OSSwapBigToHostInt64
 #define htobe16	OSSwapHostToBigInt16
 #define htobe32	OSSwapHostToBigInt32
 #define htobe64	OSSwapHostToBigInt64
+#elif defined(HAVE_ENDIAN_H)
+#define betoh16	be16toh
+#define betoh32	be32toh
+#define betoh64	be64toh
 #endif
 
 #if defined(HAVE_APPLE_NATT) && !defined(SADB_X_EXT_NATT)
@@ -825,7 +834,6 @@ struct sadb_sa_natt {
 # endif
 #endif
 
-/* chl parts */
 #ifndef EAI_NODATA
 # ifdef EAI_NONAME
 #  define EAI_NODATA EAI_NONAME
@@ -837,6 +845,26 @@ struct sadb_sa_natt {
 #ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC -1
 #endif
-/* end of chl */
+
+#ifdef HAVE_DIRENT_H
+# include <dirent.h>
+# define NAMLEN(dirent) strlen((dirent)->d_name)
+#else
+# define dirent direct
+# define NAMLEN(dirent) (dirent)->d_namlen
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
+#endif
+
+#ifndef _PASSWORD_LEN
+#define _PASSWORD_LEN	128
+#endif
 
 #endif /* _DEFINES_H */

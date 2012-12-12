@@ -1,15 +1,20 @@
-sbin_PROGRAMS=	iked
+sbin_PROGRAMS=		iked
 
-iked_MAPS=	eap_map.c ikev2_map.c
-iked_MAPS_IN=	eap.h ikev2.h
-iked_SOURCES=	ca.c chap_ms.c config.c control.c crypto.c dh.c \
-		eap.c iked.c ikev1.c ikev2.c ikev2_msg.c ikev2_pld.c \
-		log.c pfkey.c policy.c proc.c timer.c util.c imsg_util.c \
-		parse.y $(iked_MAPS)
+iked_MAPS=		eap_map.c ikev2_map.c
+iked_MAPS_IN=		eap.h ikev2.h
+iked_SOURCES=		ca.c chap_ms.c config.c control.c crypto.c dh.c \
+			eap.c iked.c ikev1.c ikev2.c ikev2_msg.c ikev2_pld.c \
+			log.c policy.c proc.c timer.c util.c imsg_util.c \
+			parse.y $(iked_MAPS)
 iked_CFLAGS=
 
+libpfkey_a_SOURCES=	pfkey.c
+libpfkey_a_CPPFLAGS=	@PFKEY_CPPFLAGS@
+
+noinst_LIBRARIES=	libpfkey.a
+
 LIBCOMPAT=	$(top_builddir)/openbsd-compat/libopenbsd-compat.a
-LDADD=		$(LIBCOMPAT)
+LDADD=		$(LIBCOMPAT) libpfkey.a
 CPPFLAGS=	-include $(top_srcdir)/openbsd-compat/includes.h \
 		-I$(top_srcdir)/openbsd-compat \
 		-I$(srcdir) @CPPFLAGS@ @DEFS@

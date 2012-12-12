@@ -45,10 +45,14 @@
 #ifdef HAVE_LIMITS_H
 # include <limits.h> /* For PATH_MAX */
 #endif
+
 #ifdef HAVE_BSTRING_H
 # include <bstring.h>
 #endif
 
+#ifdef HAVE_ASM_BYTEORDER_H
+# include <asm/byteorder.h>
+#endif
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
 #endif
@@ -81,20 +85,36 @@
 #endif
 #include <errno.h>
 
+#ifdef HAVE_ERR_H
+#include <err.h>
+#endif
+
+#if defined (HAVE_NETINET_IN_H)
+#include <netinet/in.h>
+#endif
+
 #ifdef HAVE_NETDB_H
 # include <netdb.h>
 #endif
 
-#if !defined(HAVE_NETINET_IP_IPSP_H) && defined (HAVE_NETINET6_IPSEC_H)
+#if defined (HAVE_NETINET6_IPSEC_H)
 #include <netinet6/ipsec.h>
 #endif
 
-#ifdef HAVE_LIBKERN_OSBYTEORDER_H
+#if defined (HAVE_LINUX_IPSEC_H)
+#include <linux/ipsec.h>
+#endif
+
+#if defined(HAVE_LIBKERN_OSBYTEORDER_H)
 #include <libkern/OSByteOrder.h>
 #endif
 
 #ifdef HAVE_NET_PFKEYV2_H
 #include <net/pfkeyv2.h>
+#endif
+
+#ifdef HAVE_LINUX_PFKEYV2_H
+#include <linux/pfkeyv2.h>
 #endif
 
 #ifdef HAVE_SYS_SYSCTL_H

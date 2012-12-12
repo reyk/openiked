@@ -30,8 +30,6 @@
 #if defined(__OpenBSD__)
 #include <netinet/ip_ipsp.h>
 #include <net/pfkeyv2.h>
-#else
-#include <netinet6/ipsec.h>
 #endif
 
 #include <err.h>
@@ -542,13 +540,13 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 	sa_src.sadb_address_proto = IPSEC_ULPROTO_ANY; //flow->flow_ipproto
 	sa_src.sadb_address_prefixlen = smask;
-	sa_src.sadb_address_len = ROUNDUP(sizeof(sa_src) + ssrc.ss_len) / 8;
+	sa_src.sadb_address_len = ROUNDUP(sizeof(sa_src) + SS_LEN(&ssrc)) / 8;
 
 	bzero(&sa_dst, sizeof(sa_dst));
 	sa_dst.sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 	sa_dst.sadb_address_proto = IPSEC_ULPROTO_ANY; //flow->flow_ipproto;
 	sa_dst.sadb_address_prefixlen = dmask;
-	sa_dst.sadb_address_len = ROUNDUP(sizeof(sa_dst) + sdst.ss_len) / 8;
+	sa_dst.sadb_address_len = ROUNDUP(sizeof(sa_dst) + SS_LEN(&sdst)) / 8;
 
 	bzero(&sa_policy, sizeof(sa_policy));
 	sa_policy.sadb_x_policy_exttype = SADB_X_EXT_POLICY;
@@ -569,7 +567,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		    flow->flow_dir == IPSEC_DIR_INBOUND ?
 		    IPSEC_LEVEL_USE : IPSEC_LEVEL_REQUIRE;
 	 	sa_ipsec.sadb_x_ipsecrequest_len = sizeof(sa_ipsec) +
-		    slocal.ss_len + speer.ss_len;
+		    SS_LEN(&slocal) + SS_LEN(&speer);
 		padlen = ROUNDUP(sa_ipsec.sadb_x_ipsecrequest_len) -
 		    sa_ipsec.sadb_x_ipsecrequest_len;
 	 	sa_ipsec.sadb_x_ipsecrequest_len += padlen;
@@ -597,7 +595,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	iov[iov_cnt].iov_len = sizeof(sa_src);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &ssrc;
-	iov[iov_cnt].iov_len = ssrc.ss_len;
+	iov[iov_cnt].iov_len = SS_LEN(&ssrc);
 	smsg.sadb_msg_len += sa_src.sadb_address_len;
 	iov_cnt++;
 
@@ -606,7 +604,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	iov[iov_cnt].iov_len = sizeof(sa_dst);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &sdst;
-	iov[iov_cnt].iov_len = sdst.ss_len;
+	iov[iov_cnt].iov_len = SS_LEN(&sdst);
 	smsg.sadb_msg_len += sa_dst.sadb_address_len;
 	iov_cnt++;
 
@@ -621,10 +619,10 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		iov[iov_cnt].iov_len = sizeof(sa_ipsec);
 		iov_cnt++;
 		iov[iov_cnt].iov_base = &slocal;
-		iov[iov_cnt].iov_len = slocal.ss_len;
+		iov[iov_cnt].iov_len = SS_LEN(&slocal);
 		iov_cnt++;
 		iov[iov_cnt].iov_base = &speer;
-		iov[iov_cnt].iov_len = speer.ss_len;
+		iov[iov_cnt].iov_len = SS_LEN(&speer);
 		if (padlen) {
 			iov_cnt++;
 			iov[iov_cnt].iov_base = zeropad;
@@ -719,11 +717,11 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 #endif
 
 	bzero(&sa_src, sizeof(sa_src));
-	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(ssrc.ss_len)) / 8;
+	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(SS_LEN(&ssrc))) / 8;
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 
 	bzero(&sa_dst, sizeof(sa_dst));
-	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(sdst.ss_len)) / 8;
+	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(SS_LEN(&sdst))) / 8;
 	sa_dst.sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 
 	bzero(&sa_authkey, sizeof(sa_authkey));
@@ -886,7 +884,7 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	iov[iov_cnt].iov_len = sizeof(sa_src);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &ssrc;
-	iov[iov_cnt].iov_len = ROUNDUP(ssrc.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&ssrc));
 	smsg.sadb_msg_len += sa_src.sadb_address_len;
 	iov_cnt++;
 
@@ -895,7 +893,7 @@ pfkey_sa(int sd, u_int8_t satype, u_int8_t action, struct iked_childsa *sa)
 	iov[iov_cnt].iov_len = sizeof(sa_dst);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &sdst;
-	iov[iov_cnt].iov_len = ROUNDUP(sdst.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&sdst));
 	smsg.sadb_msg_len += sa_dst.sadb_address_len;
 	iov_cnt++;
 
@@ -1040,11 +1038,11 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	sa_spirange.sadb_spirange_reserved = 0;
 
 	bzero(&sa_src, sizeof(sa_src));
-	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(ssrc.ss_len)) / 8;
+	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(SS_LEN(&ssrc))) / 8;
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 
 	bzero(&sa_dst, sizeof(sa_dst));
-	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(sdst.ss_len)) / 8;
+	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(SS_LEN(&sdst))) / 8;
 	sa_dst.sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 
 	iov_cnt = 0;
@@ -1067,7 +1065,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	iov[iov_cnt].iov_len = sizeof(sa_src);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &ssrc;
-	iov[iov_cnt].iov_len = ROUNDUP(ssrc.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&ssrc));
 	smsg.sadb_msg_len += sa_src.sadb_address_len;
 	iov_cnt++;
 
@@ -1076,7 +1074,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	iov[iov_cnt].iov_len = sizeof(sa_dst);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &sdst;
-	iov[iov_cnt].iov_len = ROUNDUP(sdst.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&sdst));
 	smsg.sadb_msg_len += sa_dst.sadb_address_len;
 	iov_cnt++;
 
@@ -1617,14 +1615,10 @@ pfkey_init(struct iked *env, int fd)
 	if (env->sc_opts & IKED_OPT_NOIPV6BLOCKING)
 		return;
 
-#if defined(_OPENBSD_IPSEC_API_VERSION)
-	log_debug("%s: 
-#else
 	/* Block all IPv6 traffic by default */
 	pfkey_blockipv6 = 1;
 	if (pfkey_block(fd, AF_INET6, SADB_X_ADDFLOW))
 		fatal("pfkey_init: failed to block IPv6 traffic");
-#endif
 }
 
 void *

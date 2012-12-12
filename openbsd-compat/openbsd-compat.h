@@ -177,4 +177,6 @@ int scan_scaled(char *scaled, long long *result);
 int fmt_scaled(long long number, char *result);
 #endif
 
+void seed_rng(void);
+
 #endif /* _OPENBSD_COMPAT_H */
