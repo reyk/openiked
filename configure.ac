@@ -245,6 +245,8 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 			[Define if cmsg_type is not passed correctly])
 		;;
 	esac
+	AC_DEFINE([BROKEN_HMAC_SHA2_256], 1,
+		[Uses pre-standard HMAC-SHA2-256 truncation])
 	pfkeyv2_h="linux/pfkeyv2.h"
 	IKED_USER=iked
 	;;

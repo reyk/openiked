@@ -118,9 +118,15 @@ static const struct pfkey_constmap pfkey_integr[] = {
 #ifdef SADB_X_AALG_DES
 	{ SADB_X_AALG_DES,	IKEV2_XFORMAUTH_DES_MAC },
 #endif
+#if defined(SADB_X_AALG_SHA2_256) && !defined(BROKEN_HMAC_SHA2_256)
 	{ SADB_X_AALG_SHA2_256,	IKEV2_XFORMAUTH_HMAC_SHA2_256_128 },
+#endif
+#ifdef SADB_X_AALG_SHA2_384
 	{ SADB_X_AALG_SHA2_384,	IKEV2_XFORMAUTH_HMAC_SHA2_384_192 },
+#endif
+#ifdef SADB_X_AALG_SHA2_512
 	{ SADB_X_AALG_SHA2_512,	IKEV2_XFORMAUTH_HMAC_SHA2_512_256 },
+#endif
 	{ 0 }
 };
 
