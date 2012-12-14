@@ -1,8 +1,8 @@
 OpenIKED
 ========
 
-This is the port of OpenBSD's iked to Darwin/OSX and other systems in
-the future (see "Supported Platforms").
+This is the port of OpenBSD's iked to Darwin/OS X and other
+operating systems (see "Supported Platforms").
 
 iked is a lean Internet Key Exchange (IKEv2) daemon which performs
 mutual authentication and which establishes and maintains IPsec VPN
@@ -73,8 +73,9 @@ Original version:
 
 Portable version:
 
-* Apple Darwin (OSX Mountain Lion 10.8)
-* TODO: more PFKEYv2/KAME-based platforms, maybe Linux.
+* Darwin (Apple OS X Mountain Lion 10.8)
+* Linux (Ubuntu 12.10 GNU/Linux 3.5.0-19-generic)
+* TODO: more BSDs and PFKEYv2/KAME-based platforms.
 
 Development
 -----------
@@ -143,7 +144,15 @@ Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
 * NAT-T:
 NAT-T is only supported on OpenBSD and Darwin (OS X).  The NAT-T API
 is not standardized in PFKEYv2, not even on a semi-level, and differs
-in most operating systems, if supported at all. 
+in most operating systems, if supported at all.
+
+* Crypto algorithms:
+Some of the crypto algorithms are either not supported on other systems
+or not implemented correctly.  For example, Linux still uses the broken
+pre-standard version of hmac-sha2-256 by default that was specified with
+96 bit truncation instead of the standard 128 bit truncation.  The common
+workaround that allows to specify the truncation length would be to use
+Linux' non-standard XFRM kernel API instead of PFKEYv2.
 
 Reyk
 
