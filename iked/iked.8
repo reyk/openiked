@@ -182,4 +182,13 @@ Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
 NAT-T is only supported on OpenBSD and Darwin (OS X).
 The NAT-T API is not standardized in PFKEYv2, not even on a semi-level,
 and differs in most operating systems, if supported at all.
+.It Ic Crypto algorithms
+Some of the crypto algorithms are either not supported on other
+systems or not implemented correctly.
+For example, Linux still uses the broken pre-standard version of
+hmac-sha2-256 by default that was specified with 96 bit truncation
+instead of the standard 128 bit truncation.
+The common workaround that allows to specify the truncation length
+would be to use Linux' non-standard XFRM kernel API instead of
+PFKEYv2.
 .El
