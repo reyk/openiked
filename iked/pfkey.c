@@ -534,7 +534,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	bzero(&sa_2, sizeof(sa_2));
 	sa_2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
 	sa_2.sadb_x_sa2_len = sizeof(sa_2) / 8;
-	sa_2.sadb_x_sa2_mode = 0;
+	sa_2.sadb_x_sa2_mode = IPSEC_MODE_TUNNEL;
 
 	bzero(&sa_src, sizeof(sa_src));
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
@@ -1027,7 +1027,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	bzero(&sa_2, sizeof(sa_2));
 	sa_2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
 	sa_2.sadb_x_sa2_len = sizeof(sa_2) / 8;
-	sa_2.sadb_x_sa2_mode = 0;
+	sa_2.sadb_x_sa2_mode = IPSEC_MODE_TUNNEL;
 #endif
 
 	bzero(&sa_spirange, sizeof(sa_spirange));
@@ -1035,15 +1035,20 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	sa_spirange.sadb_spirange_len = sizeof(sa_spirange) / 8;
 	sa_spirange.sadb_spirange_min = 0x100;
 	sa_spirange.sadb_spirange_max = 0xffffffff;
-	sa_spirange.sadb_spirange_reserved = 0;
 
 	bzero(&sa_src, sizeof(sa_src));
 	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(SS_LEN(&ssrc))) / 8;
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
+	sa_src.sadb_address_proto = IPSEC_ULPROTO_ANY;
+	sa_src.sadb_address_prefixlen = (ssrc.ss_family == AF_INET ?
+	    sizeof(struct in_addr) : sizeof(struct in6_addr)) << 3;
 
 	bzero(&sa_dst, sizeof(sa_dst));
 	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(SS_LEN(&sdst))) / 8;
 	sa_dst.sadb_address_exttype = SADB_EXT_ADDRESS_DST;
+	sa_dst.sadb_address_proto = IPSEC_ULPROTO_ANY;
+	sa_dst.sadb_address_prefixlen = (sdst.ss_family == AF_INET ?
+	    sizeof(struct in_addr) : sizeof(struct in6_addr)) << 3;
 
 	iov_cnt = 0;
 
