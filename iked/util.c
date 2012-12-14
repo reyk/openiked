@@ -263,6 +263,15 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 			goto bad;
 		}
 	} else {
+#ifdef IPV6_V6ONLY
+		val = 1;
+		if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+		    &val, sizeof(int)) == -1) {
+			log_warn("%s: failed to set IPv6-only mode",
+			    __func__);
+			goto bad;
+		}
+#endif
 		val = 1;
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 		    &val, sizeof(int)) == -1) {
@@ -403,7 +412,7 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_PKTINFO) {
 				in = (struct sockaddr_in *)to;
-				in->sin_family = AF_INET6;
+				in->sin_family = AF_INET;
 #ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 				in->sin_len = *tolen = sizeof(*in);
 #else
