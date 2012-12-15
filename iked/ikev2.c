@@ -2127,7 +2127,7 @@ ikev2_send_create_child_sa(struct iked *env, struct iked_sa *sa,
 	struct iked_childsa		*csa = NULL, *csb = NULL;
 	struct ikev2_notify		*n;
 	struct ikev2_payload		*pld;
-	struct ibuf			*e, *nonce = NULL;
+	struct ibuf			*e = NULL, *nonce = NULL;
 	u_int8_t			*ptr;
 	u_int32_t			 spi;
 	ssize_t				 len = 0;
