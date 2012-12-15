@@ -72,8 +72,8 @@ on Linux.
 	# mkdir /var/empty
 	# chown root:sys /var/empty
 	# chmod 755 /var/empty
-	# groupadd sshd
-	# useradd -g _iked -c 'iked privsep' -d /var/empty -s /bin/false _iked
+	# groupadd _iked
+	# useradd -g _iked -c 'iked privsep' -d /var/empty -s /sbin/nologin _iked
 ```
 
 8. On FreeBSD, NetBSD and maybe other BSD-variants IPsec is not
