@@ -55,6 +55,7 @@ install-exec-hook: $(CONFIGFILES) $(MANPAGES)
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/ca
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/certs
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/crls
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/fqdn
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/ufqdn
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/ipv4
