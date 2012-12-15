@@ -540,7 +540,12 @@ struct sadb_sa_natt {
 # define __packed __attribute__((packed))
 #endif
 
-#ifndef __dead
+#if defined(__clang__)
+# if defined(__dead)
+#  undef __dead
+# endif
+# define __dead	__attribute__((noreturn)) __attribute__((analyzer_noreturn))
+#elif !defined(__dead)
 # define __dead	__attribute__((noreturn))
 #endif
 
