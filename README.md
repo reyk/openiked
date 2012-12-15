@@ -64,6 +64,26 @@ with MacPorts:
 6. Type `make install` to install OpenIKED, or `sudo make install` if
 you didn't compile OpenIKED as root.
 
+7. Run something like the following to create iked's unprivileged
+system user and environment. Note that the command syntax and user
+name might vary on different platforms - use "iked" instead of "_iked"
+on Linux.
+```
+	# mkdir /var/empty
+	# chown root:sys /var/empty
+	# chmod 755 /var/empty
+	# groupadd sshd
+	# useradd -g _iked -c 'iked privsep' -d /var/empty -s /bin/false _iked
+```
+
+8. On FreeBSD, NetBSD and maybe other BSD-variants IPsec is not
+enabled in the default GENERIC kernel.  You have to compile a custom
+kernel and enable options like `IPSEC`.  Please refer to the
+individual documentation for details, for example:
+
+* http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/ipsec.html
+* http://www.netbsd.org/docs/network/ipsec/#config_kernel
+
 Supported Platforms
 -------------------
 
@@ -75,7 +95,9 @@ Portable version:
 
 * Darwin (Apple OS X Mountain Lion 10.8)
 * Linux (Ubuntu 12.10 GNU/Linux 3.5.0-19-generic)
-* TODO: more BSDs and PFKEYv2/KAME-based platforms.
+* FreeBSD (FreeBSD 9.0-RELEASE with IPSEC kernel)
+* NetBSD (NetBSD 6.0 with IPSEC kernel)
+* TODO: other BSDs and PFKEYv2/KAME-based platforms.
 
 Development
 -----------
