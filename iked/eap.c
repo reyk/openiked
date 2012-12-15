@@ -95,7 +95,6 @@ eap_challenge_request(struct iked *env, struct iked_sa *sa,
 {
 	struct eap_message		*eap;
 	struct eap_mschap_challenge	*ms;
-	ssize_t				 len = 0;
 	const char			*name;
 	int				 ret = -1;
 	struct ibuf			*e;
