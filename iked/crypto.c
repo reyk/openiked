@@ -534,6 +534,7 @@ dsa_free(struct iked_dsa *dsa)
 	}
 
 	ibuf_release(dsa->dsa_keydata);
+	free(dsa);
 }
 
 struct ibuf *

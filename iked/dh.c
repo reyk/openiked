@@ -298,6 +298,7 @@ group_free(struct group *group)
 	if (group->ec != NULL)
 		EC_KEY_free(group->ec);
 	group->spec = NULL;
+	free(group);
 }
 
 struct group *
