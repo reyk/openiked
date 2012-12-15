@@ -124,7 +124,6 @@ eap_challenge_request(struct iked *env, struct iked_sa *sa,
 		arc4random_buf(ms->msc_challenge, sizeof(ms->msc_challenge));
 		if (ibuf_add(e, name, strlen(name)) == -1)
 			goto done;
-		len = betoh16(eap->eap_length);
 
 		/* Store the EAP challenge value */
 		sa->sa_eap.id_type = eap->eap_type;

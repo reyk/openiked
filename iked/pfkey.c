@@ -469,12 +469,9 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	u_int8_t		 zeropad[8];
 	size_t			 padlen;
 
-	sport = dport = 0;
-
 	bzero(&ssrc, sizeof(ssrc));
 	memcpy(&ssrc, &flow->flow_src.addr, sizeof(ssrc));
-	if ((sport = flow->flow_src.addr_port) != 0)
-		dport = 0xffff;
+	sport = flow->flow_src.addr_port;
 	socket_af((struct sockaddr *)&ssrc, sport);
 
 	switch (flow->flow_src.addr_af) {
@@ -494,9 +491,8 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 
 	bzero(&sdst, sizeof(sdst));
 	memcpy(&sdst, &flow->flow_dst.addr, sizeof(sdst));
-	if ((sport = flow->flow_dst.addr_port) != 0)
-		dport = 0xffff;
-	socket_af((struct sockaddr *)&sdst, sport);
+	dport = flow->flow_dst.addr_port;
+	socket_af((struct sockaddr *)&sdst, dport);
 
 	switch (flow->flow_dst.addr_af) {
 	case AF_INET:

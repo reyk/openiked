@@ -608,7 +608,6 @@ config_setpolicy(struct iked *env, struct iked_policy *pol,
 		iovcnt += prop->prop_nxforms + 1;
 	}
 
-	size += pol->pol_nflows * sizeof(*flow);
 	iovcnt += pol->pol_nflows;
 
 	if (iovcnt > IOV_MAX) {
