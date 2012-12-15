@@ -316,7 +316,7 @@ sa_new(struct iked *env, u_int64_t ispi, u_int64_t rspi,
 	} else
 		localid = &sa->sa_rid;
 
-	if (!ibuf_length(localid->id_buf) &&
+	if (!ibuf_length(localid->id_buf) && pol != NULL &&
 	    ikev2_policy2id(&pol->pol_localid, localid, 1) != 0) {
 		log_debug("%s: failed to get local id", __func__);
 		sa_free(env, sa);
