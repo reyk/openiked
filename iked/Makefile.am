@@ -52,13 +52,21 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
 
 install-exec-hook: $(CONFIGFILES) $(MANPAGES)
-	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/iked/
-	$(MKDIR_P) $(DESTDIR)$(sbindir)
-	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
-	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)5
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/ca
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/certs
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/fqdn
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/ufqdn
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/ipv4
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/pubkeys/ipv6
+	$(INSTALL) -d -m 700 $(DESTDIR)$(sysconfdir)/iked/private
+	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/iked/
+	$(INSTALL) -d $(DESTDIR)$(sbindir)
+	$(INSTALL) -d $(DESTDIR)$(mandir)/$(mansubdir)8
+	$(INSTALL) -d $(DESTDIR)$(mandir)/$(mansubdir)5
 
 	@if [ ! -f $(DESTDIR)$(sysconfdir)/iked.conf ]; then \
-		$(INSTALL) -m 644 iked.conf.out $(DESTDIR)$(sysconfdir)/iked.conf; \
+		$(INSTALL) -m 600 iked.conf.out $(DESTDIR)$(sysconfdir)/iked.conf; \
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/iked.conf already exists, install will not overwrite"; \
 	fi

@@ -53,12 +53,13 @@
 #ifdef HAVE_ASM_BYTEORDER_H
 # include <asm/byteorder.h>
 #endif
-#ifdef HAVE_ENDIAN_H
+
+#if defined(HAVE_ENDIAN_H)
 # include <endian.h>
+#elif defined(HAVE_SYS_ENDIAN_H)
+# include <sys/endian.h>
 #endif
-#ifdef HAVE_MAILLOCK_H
-# include <maillock.h> /* For _PATH_MAILDIR */
-#endif
+
 #ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
@@ -99,9 +100,9 @@
 
 #if defined (HAVE_NETINET6_IPSEC_H)
 #include <netinet6/ipsec.h>
-#endif
-
-#if defined (HAVE_LINUX_IPSEC_H)
+#elif defined(HAVE_NETIPSEC_IPSEC_H)
+#include <netipsec/ipsec.h>
+#elif defined (HAVE_LINUX_IPSEC_H)
 #include <linux/ipsec.h>
 #endif
 

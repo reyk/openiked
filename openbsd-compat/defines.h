@@ -53,8 +53,8 @@ enum
 # define IPTOS_MINCOST           IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
 
-#if !defined(HAVE_NETINET_IP_IPSP_H) && \
-    (defined(HAVE_NETINET6_IPSEC_H) || defined(HAVE_LINUX_IPSEC_H))
+#if !defined(HAVE_NETINET_IP_IPSP_H) && (defined(HAVE_NETINET6_IPSEC_H) || \
+    defined(HAVE_NETIPSEC_IPSEC_H) || defined(HAVE_LINUX_IPSEC_H))
 #define IPSP_DIRECTION_IN	IPSEC_DIR_INBOUND
 #define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND	/* XXX Linux: _FWD? */
 #endif
@@ -373,10 +373,16 @@ struct winsize {
 #define htobe16	OSSwapHostToBigInt16
 #define htobe32	OSSwapHostToBigInt32
 #define htobe64	OSSwapHostToBigInt64
-#elif defined(HAVE_ENDIAN_H)
+#else
+#if !defined(betoh16)
 #define betoh16	be16toh
+#endif
+#if !defined(betoh32)
 #define betoh32	be32toh
+#endif
+#if !defined(betoh64)
 #define betoh64	be64toh
+#endif
 #endif
 
 #if defined(HAVE_APPLE_NATT) && !defined(SADB_X_EXT_NATT)
