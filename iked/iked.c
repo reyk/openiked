@@ -154,9 +154,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	argv += optind;
-	argc -= optind;
-
 	if ((env = calloc(1, sizeof(*env))) == NULL)
 		fatal("calloc: env");
 
@@ -360,8 +357,9 @@ parent_sig_handler(int sig, short event, void *arg)
 
 			for (id = 0; id < PROC_MAX; id++)
 				if (pid == ps->ps_pid[id]) {
-					log_warnx("lost child: %s %s",
-					    ps->ps_title[id], cause);
+					if (fail)
+						log_warnx("lost child: %s %s",
+						    ps->ps_title[id], cause);
 					break;
 				}
 
