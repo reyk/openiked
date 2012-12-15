@@ -102,19 +102,19 @@ mschap_des_addparity(u_int8_t *key, u_int8_t *des_key)
 	des_key[6] = get7bits(key, 42);
 	des_key[7] = get7bits(key, 49);
 
-	DES_set_odd_parity((des_cblock *)des_key);
+	DES_set_odd_parity((DES_cblock *)des_key);
 }
 
 void
 mschap_des_encrypt(u_int8_t *clear, u_int8_t *key, u_int8_t *cipher)
 {
-	des_cblock		des_key;
-	des_key_schedule	key_schedule;
+	DES_cblock		des_key;
+	DES_key_schedule	key_schedule;
 
 	mschap_des_addparity(key, des_key);
 
 	DES_set_key(&des_key, &key_schedule);
-	DES_ecb_encrypt((des_cblock *)clear, (des_cblock *)cipher,
+	DES_ecb_encrypt((DES_cblock *)clear, (DES_cblock *)cipher,
 	    &key_schedule, 1);
 }
 
