@@ -32,6 +32,7 @@ $(MANPAGES): $(MANPAGES_IN)
 
 install-exec-hook: $(MANPAGES)
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/iked/
+	$(MKDIR_P) $(DESTDIR)$(SSLDIR)
 	$(MKDIR_P) $(DESTDIR)$(sbindir)
 	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
 
