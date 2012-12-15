@@ -32,6 +32,8 @@ AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AC_PATH_PROG([AR], [ar])
 AC_PATH_PROG([CAT], [cat])
+AC_PATH_PROG([CHMOD], [chmod])
+AC_PATH_PROG([CHOWN], [chown])
 AC_PATH_PROG([SED], [sed])
 AC_PATH_PROG([TEST_MINUS_S_SH], [bash])
 AC_PATH_PROG([TEST_MINUS_S_SH], [ksh])
@@ -145,10 +147,10 @@ AC_CHECK_HEADERS([\
 	netdb.h \
 	netinet/in.h \
 	netinet/in_systm.h \
-	netinet/ip.h \
 	netinet/ip_ipsp.h \
 	netinet/tcp.h \
 	netinet6/ipsec.h \
+	netipsec/ipsec.h \
 	mach/mach_time.h \
 	pwd.h \
 	signal.h \
@@ -1985,7 +1987,7 @@ if test "x$check_for_libcrypt_later" = "x1"; then
 fi
 
 # Determine OpenSSL configuration directory
-SSLDIR=/etc/ssl
+SSLDIR=${_sysconfdir}/ssl
 AC_MSG_CHECKING([OpenSSL configuration directory])
 AC_RUN_IFELSE(
 	[AC_LANG_PROGRAM([[
@@ -2011,6 +2013,8 @@ AC_RUN_IFELSE(
 	],
 	[], [])
 AC_MSG_RESULT([$SSLDIR])
+AC_DEFINE_UNQUOTED([SSLDIR], ["$SSLDIR"], [OpenSSL Configuration Directory])
+AC_SUBST([SSLDIR])
 
 ### Configure cryptographic random number support
 
@@ -2446,7 +2450,6 @@ if test "x$OPENSSL" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_OPENSSL], ["$OPENSSL"],
 		[Path to OpenSSL binary])
 fi
-AC_DEFINE_UNQUOTED([SSLDIR], ["$SSLDIR"], [OpenSSL Configuration Directory])
 
 if test "x$TAR" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_TAR], ["$TAR"], [Path to TAR binary])
@@ -2455,10 +2458,9 @@ if test "x$ZIP" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], [Path to ZIP binary])
 fi
 
-AC_DEFINE_UNQUOTED([PREFIX], ["$PREFIX"], [Root directory prefix])
+AC_DEFINE_UNQUOTED([PREFIX], ["$prefix"], [Root directory prefix])
 
 AC_DEFINE([_GNU_SOURCE], [1], [Enable GNU Extensions])
-AC_DEFINE([_C99_SOURCE], [1], [Enable C99 Extensions])
 
 dnl Adding -Werror to CFLAGS early prevents configure tests from running.
 dnl Add now.
