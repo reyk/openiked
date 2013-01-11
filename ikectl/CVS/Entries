@@ -1,8 +1,8 @@
-/Makefile/1.1/Thu Jun  3 16:41:12 2010//
-/parser.c/1.11/Thu Oct 25 15:21:43 2012//
-/ikeca.cnf/1.5/Thu Oct 25 16:06:39 2012//
-/ikectl.8/1.19/Thu Oct 25 16:06:39 2012//
-/ikectl.c/1.15/Result of merge//
-/parser.h/1.11/Thu Oct 25 16:06:39 2012//
-/ikeca.c/1.24/Mon Dec 10 10:38:03 2012//
+/Makefile/1.2/Result of merge+Fri Jan 11 08:23:23 2013//
+/ikeca.c/1.25/Result of merge//
+/ikeca.cnf/1.5/Thu Nov 15 14:24:01 2012//
+/ikectl.8/1.20/Fri Jan 11 08:23:25 2013//
+/ikectl.c/1.16/Result of merge//
+/parser.c/1.12/Result of merge//
+/parser.h/1.12/Fri Jan 11 08:23:27 2013//
 D

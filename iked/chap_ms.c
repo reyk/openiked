@@ -1,9 +1,8 @@
-/*	$OpenBSD: chap_ms.c,v 1.4 2012/12/04 02:24:47 deraadt Exp $	*/
-/*	$vantronix: chap_ms.c,v 1.7 2010/06/02 12:22:58 reyk Exp $	*/
+/*	$OpenBSD: chap_ms.c,v 1.6 2013/01/08 10:38:19 reyk Exp $	*/
 
 /*
- * Copyright (c) 2010 Reyk Floeter <reyk@openbsd.org>
- * Copyright (c) 1997 - 2001 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
+ * Copyright (c) 1997-2001 Brian Somers <brian@Awfulhak.org>
  * Copyright (c) 1997 Gabor Kincses <gabor@acm.org>
  * Copyright (c) 1995 Eric Rosenquist
  *
