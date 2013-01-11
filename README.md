@@ -144,6 +144,9 @@ Authors
 * Reyk Floeter <reyk@openbsd.org>
 * Mike Belopuhov <mikeb@openbsd.org>
 
+See [`LICENSE.md`](https://github.com/reyk/openiked/blob/master/LICENSE.md)
+for information about copyright and licensing.
+
 Caveats, bugs and limitations
 -----------------------------
 
