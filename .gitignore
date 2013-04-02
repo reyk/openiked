@@ -8,6 +8,7 @@
 *.cat?
 .#*
 .deps
+.DS_Store
 m4
 aclocal.m4
 Makefile
@@ -29,3 +30,5 @@ ylwrap
 iked
 ikectl
 *_map.c
+clang_*
+*-scan-build
