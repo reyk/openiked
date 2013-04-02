@@ -1716,6 +1716,10 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 	u_int8_t		*reply;
 	ssize_t			 rlen;
 	const char		*errmsg = NULL;
+#else
+	struct iked_addr	 peer;
+	struct sadb_address	*sa_addr;
+	struct sockaddr_storage	*speer;
 #endif
 	u_int8_t		*data = pm->pm_data;
 	ssize_t			 len = pm->pm_lenght;
@@ -1727,16 +1731,14 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 
 	switch (hdr->sadb_msg_type) {
 	case SADB_ACQUIRE:
-#if defined(_OPENBSD_IPSEC_API_VERSION)
-		bzero(&flow, sizeof(flow));
-		bzero(&peer, sizeof(peer));
-
+		/* Get peer from the acquire message */
 		if ((sa_addr = pfkey_find_ext(data, len,
 		    SADB_EXT_ADDRESS_DST)) == NULL) {
 			log_debug("%s: no peer address", __func__);
 			return;
 		}
 		speer = (struct sockaddr_storage *)(sa_addr + 1);
+		bzero(&peer, sizeof(peer));
 		peer.addr_af = speer->ss_family;
 		peer.addr_port = htons(socket_getport(speer));
 		memcpy(&peer.addr, speer, sizeof(*speer));
@@ -1745,12 +1747,14 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 			log_debug("%s: invalid address", __func__);
 			return;
 		}
-		flow.flow_peer = &peer;
-
 		log_debug("%s: acquire request (peer %s)", __func__,
 		    print_host(speer, NULL, 0));
 
-		/* get the matching flow */
+#if defined(_OPENBSD_IPSEC_API_VERSION)
+		/* Get the matching flow */
+		bzero(&flow, sizeof(flow));
+		flow.flow_peer = &peer;
+
 		bzero(&smsg, sizeof(smsg));
 		smsg.sadb_msg_version = PF_KEY_V2;
 		smsg.sadb_msg_seq = ++sadb_msg_seq;
