@@ -141,6 +141,7 @@ struct iked_flow {
 	u_int8_t			 flow_saproto;
 	u_int8_t			 flow_ipproto;
 	u_int8_t			 flow_type;
+	u_int32_t			 flow_id;
 
 	struct iked_id			*flow_srcid;
 	struct iked_id			*flow_dstid;

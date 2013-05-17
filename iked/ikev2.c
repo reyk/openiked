@@ -3813,11 +3813,14 @@ ikev2_acquire_sa(struct iked *env, struct iked_flow *acquire)
 {
 	struct iked_flow	*flow;
 	struct iked_sa		*sa;
+#if defined(_OPENBSD_IPSEC_API_VERSION)
 	struct iked_policy	 pol, *p = NULL;
+#endif
 
 	if (env->sc_passive)
 		return;
 
+#if defined(_OPENBSD_IPSEC_API_VERSION)
 	/* First try to find an active flow with IKE SA */
 	flow = RB_FIND(iked_flows, &env->sc_activeflows, acquire);
 	if (!flow) {
@@ -3843,6 +3846,9 @@ ikev2_acquire_sa(struct iked *env, struct iked_flow *acquire)
 			log_warnx("%s: failed to initiate a "
 			    "IKE_SA_INIT exchange", __func__);
 	} else {
+#else
+	if ((flow = acquire) != NULL) {
+#endif
 		log_debug("%s: found active flow", __func__);
 
 		if ((sa = flow->flow_ikesa) == NULL) {

@@ -457,7 +457,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	struct sadb_msg		 smsg;
 	struct sadb_address	 sa_src, sa_dst;
 	struct sadb_x_ipsecrequest sa_ipsec;
-	struct sadb_x_policy	 sa_policy;
+	struct sadb_x_policy	 sa_policy, *sa_polid;
 	struct sadb_x_sa2	 sa_2;
 	struct sockaddr_storage	 ssrc, sdst, slocal, speer;
 	struct iovec		 iov[IOV_CNT];
@@ -466,6 +466,8 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	u_int8_t		 smask, dmask;
 	u_int8_t		 zeropad[8];
 	size_t			 padlen;
+	u_int8_t		*reply = NULL;
+	ssize_t			 rlen;
 
 	bzero(&ssrc, sizeof(ssrc));
 	memcpy(&ssrc, &flow->flow_src.addr, sizeof(ssrc));
@@ -631,7 +633,22 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		iov_cnt++;
 	}
 
-	ret = pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL);
+	ret = -1;
+	if (pfkey_write(sd, &smsg, iov, iov_cnt, &reply, &rlen) != 0)
+		goto done;
+
+	if ((sa_polid = pfkey_find_ext(reply, rlen,
+	    SADB_X_EXT_POLICY)) == NULL) {
+		log_debug("%s: erronous reply", __func__);
+		goto done;
+	}
+	flow->flow_id = sa_polid->sadb_x_policy_id;
+
+	log_debug("%s: flow with policy id 0x%x", __func__, flow->flow_id);
+	ret = 0;
+
+ done:
+	free(reply);
 
 #endif /* !_OPENBSD_IPSEC_API_VERSION */
 
@@ -1719,6 +1736,8 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 	struct iked_addr	 peer;
 	struct sadb_address	*sa_addr;
 	struct sockaddr_storage	*speer;
+	struct sadb_x_policy	*sa_pol;
+	struct iked_flow	*flow;
 #endif
 	u_int8_t		*data = pm->pm_data;
 	ssize_t			 len = pm->pm_lenght;
@@ -1881,6 +1900,28 @@ out:
 		if (errmsg)
 			log_warnx("%s: %s wasn't found", __func__, errmsg);
 		free(reply);
+#elif defined(SADB_X_EXT_POLICY)
+		if ((sa_pol = pfkey_find_ext(data, len,
+		    SADB_X_EXT_POLICY)) == NULL) {
+			log_debug("%s: no policy extension", __func__);
+			return;
+		}
+
+		RB_FOREACH(flow, iked_flows, &env->sc_activeflows) {
+			/*
+			 * Find existing active policy by policy Id.
+			 * XXX This should use another tree that uses
+			 * XXX the x_policy_id as lookup key.
+			 */
+			if (flow->flow_id == sa_pol->sadb_x_policy_id) {
+				log_debug("%s: flow %s policy id 0x%x ",
+				    __func__,
+				    flow->flow_dir == IPSP_DIRECTION_IN ?
+				    "in" : "out", flow->flow_id);
+				ikev2_acquire_sa(env, flow);
+				break;
+			}
+		}
 #else
 #warning PFKEYv2 SADB_ACQUIRE not implemented
 		log_debug("%s: SADB_ACQUIRE not yet supported here, ignored",
