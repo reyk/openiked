@@ -1524,7 +1524,18 @@ pfkey_flush(int sd)
 	iov[iov_cnt].iov_len = sizeof(smsg);
 	iov_cnt++;
 
-	return (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL));
+	if (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL) != 0)
+		return (-1);
+
+#if !defined(_OPENBSD_IPSEC_API_VERSION)
+	smsg.sadb_msg_seq = ++sadb_msg_seq;
+	smsg.sadb_msg_type = SADB_X_SPDFLUSH;
+
+	if (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL) != 0)
+		return (-1);
+#endif
+
+	return (0);
 }
 
 struct sadb_ident *
