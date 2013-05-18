@@ -160,9 +160,6 @@ OpenBSD and other systems is the API and availability of the IPsec
 PFKEYv2 flow implementation (SADB) and message passing between kernel
 and iked.  Current known limitations are:
 
-* Acquire Mode:
-The SADB_ACQUIRE PFKEYv2 message is not implemented for KAME-based stacks.
-
 * VPN traffic leakage prevention:
 Automatic blocking of IPv6 traffic is not working on KAME-bases stacks.
 
