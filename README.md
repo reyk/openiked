@@ -48,17 +48,22 @@ and libevent (version 1.4 or newer) with their header files are
 installed.
     - If you're checking out the sources from the Git repository, you will
 also need GNU automake, autoconf (version 2.69 or newer) and libtool.
+    - On Apple OSX, Homebrew [http://mxcl.github.io/homebrew/] does the job by running
+      brew install libevent openssl automake autoconf libtool
 2. Enter the top directory of the extracted sources.
 3. If you checked out the sources from the Git repository, run
 `sh bootstrap` to generate the required build files.
 4. Run `./configure` in this directory to generate the Makefiles.
     - `./configure --help` will show you some available build options.
-    - For example, you can run the following when building on Apple OSX
+    - For example, you can run the following when building on OSX
 with MacPorts:
 ```
-    ./configure --with-ssl-dir=/opt/local/
-        --with-libevent-dir=/opt/local/lib/libevent1/
+    ./configure --with-ssl-dir=/opt/local/ \
+        --with-libevent-dir=/opt/local/lib/libevent1/ \
         --prefix=/opt/local/
+or Homebrew:
+    ./configure --with-ssl-dir=/usr/local/Cellar/openssl/<version>/ \
+	--prefix=/usr/local/
 ```
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
 6. Type `make install` to install OpenIKED, or `sudo make install` if
@@ -75,7 +80,6 @@ on Linux.
 	# groupadd _iked
 	# useradd -g _iked -c 'iked privsep' -d /var/empty -s /sbin/nologin _iked
 ```
-
 8. On FreeBSD, NetBSD and maybe other BSD-variants IPsec is not
 enabled in the default GENERIC kernel.  You have to compile a custom
 kernel and enable options like `IPSEC`.  Please refer to the
