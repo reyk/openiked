@@ -1,5 +1,9 @@
+/*	$OpenBSD: arc4random.c,v 1.25 2013/10/01 18:34:57 markus Exp $	*/
+
 /*
- * Copyright (c) 1999,2000,2004 Damien Miller <djm@mindrot.org>
+ * Copyright (c) 1996, David Mazieres <dm@uun.org>
+ * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
+ * Copyright (c) 2013, Markus Friedl <markus@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,93 +18,180 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * ChaCha based random number generator for OpenBSD.
+ */
+
 #include "includes.h"
 
-#include <sys/types.h>
-
-#include <string.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/sysctl.h>
 
-#ifndef HAVE_ARC4RANDOM
+#define KEYSTREAM_ONLY
+#include "chacha_private.h"
 
-#include <openssl/rand.h>
-#include <openssl/rc4.h>
-#include <openssl/err.h>
+#ifdef __GNUC__
+#define inline __inline
+#else				/* !__GNUC__ */
+#define inline
+#endif				/* !__GNUC__ */
 
-/* Size of key to use */
-#define SEED_SIZE 20
+#define KEYSZ	32
+#define IVSZ	8
+#define BLOCKSZ	64
+#define RSBUFSZ	(16*BLOCKSZ)
+static int rs_initialized;
+static pid_t rs_stir_pid;
+static chacha_ctx rs;		/* chacha context for random keystream */
+static u_char rs_buf[RSBUFSZ];	/* keystream blocks */
+static size_t rs_have;		/* valid bytes at end of rs_buf */
+static size_t rs_count;		/* bytes till reseed */
 
-/* Number of bytes to reseed after */
-#define REKEY_BYTES	(1 << 24)
+static inline void _rs_rekey(u_char *dat, size_t datlen);
+static inline void _rs_random_buf(void *_buf, size_t n);
 
-static int rc4_ready = 0;
-static RC4_KEY rc4;
-
-unsigned int
-arc4random(void)
+static inline void
+_rs_init(u_char *buf, size_t n)
 {
-	unsigned int r = 0;
-	static int first_time = 1;
+	if (n < KEYSZ + IVSZ)
+		return;
+	chacha_keysetup(&rs, buf, KEYSZ * 8, 0);
+	chacha_ivsetup(&rs, buf + KEYSZ);
+}
 
-	if (rc4_ready <= 0) {
-		if (first_time)
-			seed_rng();
-		first_time = 0;
-		arc4random_stir();
+static void
+_rs_stir(void)
+{
+	size_t	len;
+	u_char rnd[KEYSZ + IVSZ];
+
+	len = sizeof(rnd);
+
+	_rs_random_buf(rnd, len);
+	if (!rs_initialized) {
+		rs_initialized = 1;
+		_rs_init(rnd, sizeof(rnd));
+	} else
+		_rs_rekey(rnd, sizeof(rnd));
+	memset(rnd, 0, sizeof(rnd));
+
+	/* invalidate rs_buf */
+	rs_have = 0;
+	memset(rs_buf, 0, RSBUFSZ);
+
+	rs_count = 1600000;
+}
+
+static inline void
+_rs_stir_if_needed(size_t len)
+{
+	pid_t pid = getpid();
+
+	if (rs_count <= len || !rs_initialized || rs_stir_pid != pid) {
+		rs_stir_pid = pid;
+		_rs_stir();
+	} else
+		rs_count -= len;
+}
+
+static inline void
+_rs_rekey(u_char *dat, size_t datlen)
+{
+#ifndef KEYSTREAM_ONLY
+	memset(rs_buf, 0,RSBUFSZ);
+#endif
+	/* fill rs_buf with the keystream */
+	chacha_encrypt_bytes(&rs, rs_buf, rs_buf, RSBUFSZ);
+	/* mix in optional user provided data */
+	if (dat) {
+		size_t i, m;
+
+		m = MIN(datlen, KEYSZ + IVSZ);
+		for (i = 0; i < m; i++)
+			rs_buf[i] ^= dat[i];
 	}
+	/* immediately reinit for backtracking resistance */
+	_rs_init(rs_buf, KEYSZ + IVSZ);
+	memset(rs_buf, 0, KEYSZ + IVSZ);
+	rs_have = RSBUFSZ - KEYSZ - IVSZ;
+}
 
-	RC4(&rc4, sizeof(r), (unsigned char *)&r, (unsigned char *)&r);
+static inline void
+_rs_random_buf(void *_buf, size_t n)
+{
+	u_char *buf = (u_char *)_buf;
+	size_t m;
 
-	rc4_ready -= sizeof(r);
-	
-	return(r);
+	_rs_stir_if_needed(n);
+	while (n > 0) {
+		if (rs_have > 0) {
+			m = MIN(n, rs_have);
+			memcpy(buf, rs_buf + RSBUFSZ - rs_have, m);
+			memset(rs_buf + RSBUFSZ - rs_have, 0, m);
+			buf += m;
+			n -= m;
+			rs_have -= m;
+		}
+		if (rs_have == 0)
+			_rs_rekey(NULL, 0);
+	}
+}
+
+static inline void
+_rs_random_u32(u_int32_t *val)
+{
+	_rs_stir_if_needed(sizeof(*val));
+	if (rs_have < sizeof(*val))
+		_rs_rekey(NULL, 0);
+	memcpy(val, rs_buf + RSBUFSZ - rs_have, sizeof(*val));
+	memset(rs_buf + RSBUFSZ - rs_have, 0, sizeof(*val));
+	rs_have -= sizeof(*val);
+	return;
 }
 
 void
 arc4random_stir(void)
 {
-	unsigned char rand_buf[SEED_SIZE];
-	int i;
-
-	memset(&rc4, 0, sizeof(rc4));
-	if (RAND_bytes(rand_buf, sizeof(rand_buf)) <= 0)
-		errx(1, "Couldn't obtain random bytes (error %ld)",
-		    ERR_get_error());
-	RC4_set_key(&rc4, sizeof(rand_buf), rand_buf);
-
-	/*
-	 * Discard early keystream, as per recommendations in:
-	 * http://www.wisdom.weizmann.ac.il/~itsik/RC4/Papers/Rc4_ksa.ps
-	 */
-	for(i = 0; i <= 256; i += sizeof(rand_buf))
-		RC4(&rc4, sizeof(rand_buf), rand_buf, rand_buf);
-
-	memset(rand_buf, 0, sizeof(rand_buf));
-
-	rc4_ready = REKEY_BYTES;
+	_rs_stir();
 }
-#endif /* !HAVE_ARC4RANDOM */
 
-#ifndef HAVE_ARC4RANDOM_BUF
 void
-arc4random_buf(void *_buf, size_t n)
+arc4random_addrandom(u_char *dat, int datlen)
 {
-	size_t i;
-	u_int32_t r = 0;
-	char *buf = (char *)_buf;
+	int m;
 
-	for (i = 0; i < n; i++) {
-		if (i % 4 == 0)
-			r = arc4random();
-		buf[i] = r & 0xff;
-		r >>= 8;
+	if (!rs_initialized)
+		_rs_stir();
+	while (datlen > 0) {
+		m = MIN(datlen, KEYSZ + IVSZ);
+		_rs_rekey(dat, m);
+		dat += m;
+		datlen -= m;
 	}
-	i = r = 0;
 }
-#endif /* !HAVE_ARC4RANDOM_BUF */
 
-#ifndef HAVE_ARC4RANDOM_UNIFORM
+u_int32_t
+arc4random(void)
+{
+	u_int32_t val;
+
+	_rs_random_u32(&val);
+	return val;
+}
+
+void
+arc4random_buf(void *buf, size_t n)
+{
+	_rs_random_buf(buf, n);
+}
+
 /*
  * Calculate a uniformly distributed random number less than upper_bound
  * avoiding "modulo bias".
@@ -119,17 +210,8 @@ arc4random_uniform(u_int32_t upper_bound)
 	if (upper_bound < 2)
 		return 0;
 
-#if (ULONG_MAX > 0xffffffffUL)
-	min = 0x100000000UL % upper_bound;
-#else
-	/* Calculate (2**32 % upper_bound) avoiding 64-bit math */
-	if (upper_bound > 0x80000000)
-		min = 1 + ~upper_bound;		/* 2**32 - upper_bound */
-	else {
-		/* (2**32 - (x * 2)) % x == 2**32 % x when x <= 2**31 */
-		min = ((0xffffffff - (upper_bound * 2)) + 1) % upper_bound;
-	}
-#endif
+	/* 2**32 % x == (2**32 - x) % x */
+	min = -upper_bound % upper_bound;
 
 	/*
 	 * This could theoretically loop forever but each retry has
@@ -145,4 +227,3 @@ arc4random_uniform(u_int32_t upper_bound)
 
 	return r % upper_bound;
 }
-#endif /* !HAVE_ARC4RANDOM_UNIFORM */
