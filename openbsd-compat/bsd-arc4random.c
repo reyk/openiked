@@ -156,6 +156,7 @@ _rs_random_u32(u_int32_t *val)
 	return;
 }
 
+#ifndef HAVE_ARC4RANDOM
 void
 arc4random_stir(void)
 {
@@ -185,13 +186,17 @@ arc4random(void)
 	_rs_random_u32(&val);
 	return val;
 }
+#endif /* !HAVE_ARC4RANDOM */
 
+#ifndef HAVE_ARC4RANDOM_BUF
 void
 arc4random_buf(void *buf, size_t n)
 {
 	_rs_random_buf(buf, n);
 }
+#endif /* !HAVE_ARC4RANDOM_BUF */
 
+#ifndef HAVE_ARC4RANDOM_UNIFORM
 /*
  * Calculate a uniformly distributed random number less than upper_bound
  * avoiding "modulo bias".
@@ -227,3 +232,4 @@ arc4random_uniform(u_int32_t upper_bound)
 
 	return r % upper_bound;
 }
+#endif /* !HAVE_ARC4RANDOM_UNIFORM */
