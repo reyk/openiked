@@ -1,5 +1,3 @@
-/*	$OpenBSD: arc4random.c,v 1.25 2013/10/01 18:34:57 markus Exp $	*/
-
 /*
  * Copyright (c) 1996, David Mazieres <dm@uun.org>
  * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
