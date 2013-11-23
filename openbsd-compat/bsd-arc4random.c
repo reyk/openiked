@@ -127,7 +127,6 @@ _rs_random_buf(void *_buf, size_t n)
 	u_char *buf = (u_char *)_buf;
 	size_t m;
 
-	_rs_stir_if_needed(n);
 	while (n > 0) {
 		if (rs_have > 0) {
 			m = MIN(n, rs_have);
@@ -190,6 +189,7 @@ arc4random(void)
 void
 arc4random_buf(void *buf, size_t n)
 {
+	_rs_stir_if_needed(n);
 	_rs_random_buf(buf, n);
 }
 #endif /* !HAVE_ARC4RANDOM_BUF */
