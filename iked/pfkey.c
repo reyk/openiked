@@ -51,8 +51,8 @@ static u_int sadb_decoupled = 0;
 static u_int sadb_ipv6refcnt = 0;
 
 static int pfkey_blockipv6 = 0;
-static struct event pfkey_timer_ev;
-static struct timeval pfkey_timer_tv;
+static struct iked_timer pfkey_timer;
+static struct iked_timer pfkey_pwrtimer;
 
 struct pfkey_message {
 	SIMPLEQ_ENTRY(pfkey_message)
@@ -151,7 +151,7 @@ struct sadb_ident *
 	pfkey_id2ident(struct iked_id *, u_int);
 void	*pfkey_find_ext(u_int8_t *, ssize_t, int);
 
-void	pfkey_timer_cb(int, short, void *);
+void	pfkey_timer_cb(struct iked *, void *);
 void	pfkey_process(struct iked *, struct pfkey_message *);
 
 int
@@ -1322,7 +1322,7 @@ pfkey_reply(int sd, u_int8_t **datap, ssize_t *lenp)
 		pm->pm_data = data;
 		pm->pm_lenght = len;
 		SIMPLEQ_INSERT_TAIL(&pfkey_postponed, pm, pm_entry);
-		evtimer_add(&pfkey_timer_ev, &pfkey_timer_tv);
+		timer_register(NULL, &pfkey_timer, 1);
 	}
 
 	if (datap) {
@@ -1504,7 +1504,7 @@ pfkey_sa_delete(int fd, struct iked_childsa *sa)
 }
 
 int
-pfkey_flush(int sd)
+pfkey_flush(int sd, u_int what)
 {
 	struct sadb_msg smsg;
 	struct iovec	iov[IOV_CNT];
@@ -1515,7 +1515,7 @@ pfkey_flush(int sd)
 	smsg.sadb_msg_seq = ++sadb_msg_seq;
 	smsg.sadb_msg_pid = getpid();
 	smsg.sadb_msg_len = sizeof(smsg) / 8;
-	smsg.sadb_msg_type = SADB_FLUSH;
+	smsg.sadb_msg_type = what;
 	smsg.sadb_msg_satype = SADB_SATYPE_UNSPEC;
 
 	iov_cnt = 0;
@@ -1524,18 +1524,7 @@ pfkey_flush(int sd)
 	iov[iov_cnt].iov_len = sizeof(smsg);
 	iov_cnt++;
 
-	if (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL) != 0)
-		return (-1);
-
-#if !defined(_OPENBSD_IPSEC_API_VERSION)
-	smsg.sadb_msg_seq = ++sadb_msg_seq;
-	smsg.sadb_msg_type = SADB_X_SPDFLUSH;
-
-	if (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL) != 0)
-		return (-1);
-#endif
-
-	return (0);
+	return (pfkey_write(sd, &smsg, iov, iov_cnt, NULL, NULL));
 }
 
 struct sadb_ident *
@@ -1583,6 +1572,27 @@ pfkey_id2ident(struct iked_id *id, u_int exttype)
 	return (sa_id);
 }
 
+void
+pfkey_pwrtimer_cb(struct iked *env, void *arg)
+{
+#ifdef __APPLE__
+	static struct timeval	 waketime = { 0, 0 };
+	struct timeval		 tv;
+	size_t			 size = sizeof(tv);
+	
+	if (sysctlbyname("kern.waketime", &tv, &size, NULL, 0) == 0) {
+		if (waketime.tv_sec != 0 &&
+		    memcmp(&waketime, &tv, sizeof(waketime)) != 0) {
+			log_info("%s: after power resume", __func__);
+			pfkey_flush(env->sc_pfkey, SADB_FLUSH);
+		}
+		memcpy(&waketime, &tv, sizeof(waketime));
+	}
+#endif
+
+	timer_register(env, &pfkey_pwrtimer, 3);
+}
+
 int
 pfkey_socket(void)
 {
@@ -1594,7 +1604,8 @@ pfkey_socket(void)
 	if ((fd = socket(PF_KEY, SOCK_RAW, PF_KEY_V2)) == -1)
 		fatal("pfkey_socket: failed to open PF_KEY socket");
 
-	pfkey_flush(fd);
+	pfkey_flush(fd, SADB_FLUSH);
+	pfkey_flush(fd, SADB_X_SPDFLUSH);
 
 	return (fd);
 }
@@ -1641,9 +1652,11 @@ pfkey_init(struct iked *env, int fd)
 		fatal("pfkey_init: failed to set up AH acquires");
 
 	/* Set up a timer to process messages deferred by the pfkey_reply */
-	pfkey_timer_tv.tv_sec = 1;
-	pfkey_timer_tv.tv_usec = 0;
-	evtimer_set(&pfkey_timer_ev, pfkey_timer_cb, env);
+	timer_initialize(env, &pfkey_timer, pfkey_timer_cb, NULL);
+
+	/* Run a timer to flush the SADB after power resume */
+	timer_initialize(env, &pfkey_pwrtimer, pfkey_pwrtimer_cb, NULL);
+	timer_register(env, &pfkey_pwrtimer, 3);
 
 	if (env->sc_opts & IKED_OPT_NOIPV6BLOCKING)
 		return;
@@ -1708,9 +1721,8 @@ pfkey_dispatch(int sd, short event, void *arg)
 }
 
 void
-pfkey_timer_cb(int unused, short event, void *arg)
+pfkey_timer_cb(struct iked *env, void *arg)
 {
-	struct iked		*env = arg;
 	struct pfkey_message	*pm;
 
 	while (!SIMPLEQ_EMPTY(&pfkey_postponed)) {

@@ -767,7 +767,7 @@ int	 pfkey_block(int, int, u_int);
 int	 pfkey_sa_init(int, struct iked_childsa *, u_int32_t *);
 int	 pfkey_sa_add(int, struct iked_childsa *, struct iked_childsa *);
 int	 pfkey_sa_delete(int, struct iked_childsa *);
-int	 pfkey_flush(int);
+int	 pfkey_flush(int, u_int);
 int	 pfkey_socket(void);
 void	 pfkey_init(struct iked *, int fd);
 

@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #if defined(__OpenBSD__)
@@ -658,6 +659,19 @@ void
 ikev2_init_ike_sa(struct iked *env, void *arg)
 {
 	struct iked_policy	*pol;
+#ifdef __APPLE__
+	static struct timeval	 waketime = { 0, 0 };
+	struct timeval		 tv;
+	size_t			 size = sizeof(tv);
+	
+	if (sysctlbyname("kern.waketime", &tv, &size, NULL, 0) == 0) {
+		if (waketime.tv_sec != 0 &&
+		    memcmp(&waketime, &tv, sizeof(waketime)) != 0) {
+			log_debug("%s: after power resume", __func__);
+		}
+		memcpy(&waketime, &tv, sizeof(waketime));
+	}
+#endif
 
 	TAILQ_FOREACH(pol, &env->sc_policies, pol_entry) {
 		if ((pol->pol_flags & IKED_POLICY_ACTIVE) == 0)
