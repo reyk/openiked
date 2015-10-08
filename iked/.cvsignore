@@ -1,6 +1,5 @@
 .cvsignore
 .deps
-Makefile
 Makefile.am
 Makefile.in
 iked.conf

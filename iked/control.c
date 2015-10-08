@@ -1,4 +1,4 @@
-/*	$OpenBSD: control.c,v 1.12 2013/03/21 04:30:14 deraadt Exp $	*/
+/*	$OpenBSD: control.c,v 1.16 2015/01/16 06:39:58 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -17,12 +17,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "openbsd-compat/sys-queue.h"
-#include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "openbsd-compat/sys-tree.h"
+#include <sys/tree.h>
 
 #include <net/if.h>
 
@@ -241,22 +240,17 @@ control_dispatch_imsg(int fd, short event, void *arg)
 		return;
 	}
 
-	switch (event) {
-	case EV_READ:
+	if (event & EV_READ) {
 		if ((n = imsg_read(&c->iev.ibuf)) == -1 || n == 0) {
 			control_close(fd, cs);
 			return;
 		}
-		break;
-	case EV_WRITE:
-		if (msgbuf_write(&c->iev.ibuf.w) < 0) {
+	}
+	if (event & EV_WRITE) {
+		if (msgbuf_write(&c->iev.ibuf.w) <= 0 && errno != EAGAIN) {
 			control_close(fd, cs);
 			return;
 		}
-		imsg_event_add(&c->iev);
-		return;
-	default:
-		fatalx("unknown event");
 	}
 
 	for (;;) {
@@ -288,9 +282,9 @@ control_dispatch_imsg(int fd, short event, void *arg)
 			memcpy(&v, imsg.data, sizeof(v));
 			log_verbose(v);
 
-			proc_forward_imsg(env, &imsg, PROC_PARENT);
-			proc_forward_imsg(env, &imsg, PROC_IKEV2);
-			proc_forward_imsg(env, &imsg, PROC_IKEV1);
+			proc_forward_imsg(&env->sc_ps, &imsg, PROC_PARENT, -1);
+			proc_forward_imsg(&env->sc_ps, &imsg, PROC_IKEV2, -1);
+			proc_forward_imsg(&env->sc_ps, &imsg, PROC_IKEV1, -1);
 			break;
 		case IMSG_CTL_RELOAD:
 		case IMSG_CTL_RESET:
@@ -298,7 +292,7 @@ control_dispatch_imsg(int fd, short event, void *arg)
 		case IMSG_CTL_DECOUPLE:
 		case IMSG_CTL_ACTIVE:
 		case IMSG_CTL_PASSIVE:
-			proc_forward_imsg(env, &imsg, PROC_PARENT);
+			proc_forward_imsg(&env->sc_ps, &imsg, PROC_PARENT, -1);
 			break;
 		default:
 			log_debug("%s: error handling imsg %d",

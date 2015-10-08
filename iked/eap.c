@@ -1,4 +1,4 @@
-/*	$OpenBSD: eap.c,v 1.9 2013/03/21 04:30:14 deraadt Exp $	*/
+/*	$OpenBSD: eap.c,v 1.14 2015/08/21 11:59:27 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,23 +16,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
 
 #include <netinet/in.h>
-#if defined(__OpenBSD__)
-#include <netinet/ip_ipsp.h>
-#endif
 #include <arpa/inet.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <getopt.h>
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
@@ -71,19 +66,19 @@ eap_identity_request(struct ibuf *e)
 char *
 eap_identity_response(struct eap_message *eap)
 {
-	size_t				 len;
-	char				*str;
-	u_int8_t			*ptr = (u_int8_t *)eap;
+	size_t			 len;
+	char			*str;
+	uint8_t			*ptr = (uint8_t *)eap;
 
 	len = betoh16(eap->eap_length) - sizeof(*eap);
 	ptr += sizeof(*eap);
 
 	if (len == 0 || (str = get_string(ptr, len)) == NULL) {
-		log_info("%s: invalid identity response, length %d",
+		log_info("%s: invalid identity response, length %zu",
 		    __func__, len);
 		return (NULL);
 	}
-	log_debug("%s: identity '%s' length %d", __func__, str, len);
+	log_debug("%s: identity '%s' length %zd", __func__, str, len);
 	return (str);
 }
 
@@ -177,11 +172,11 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 	struct eap_mschap_peer		*msp;
 	struct eap_mschap		*ms;
 	struct eap_mschap_success	*mss;
-	u_int8_t			*ptr, *pass;
+	uint8_t				*ptr, *pass;
 	size_t				 len, passlen;
 	char				*name, *msg;
-	u_int8_t			 ntresponse[EAP_MSCHAP_NTRESPONSE_SZ];
-	u_int8_t			 successmsg[EAP_MSCHAP_SUCCESS_SZ];
+	uint8_t				 ntresponse[EAP_MSCHAP_NTRESPONSE_SZ];
+	uint8_t				 successmsg[EAP_MSCHAP_SUCCESS_SZ];
 	struct ibuf			*eapmsg = NULL;
 	int				 ret = -1;
 
@@ -208,7 +203,7 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 	}
 
 	ms = (struct eap_mschap *)(eap + 1);
-	ptr = (u_int8_t *)(eap + 1);
+	ptr = (uint8_t *)(eap + 1);
 
 	switch (ms->ms_opcode) {
 	case EAP_MSOPCODE_RESPONSE:
@@ -336,7 +331,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 	struct eap_header		*hdr = data;
 	struct eap_message		*eap = data;
 	size_t				 len;
-	u_int8_t			*ptr;
+	uint8_t				*ptr;
 	struct eap_mschap		*ms;
 	struct eap_mschap_challenge	*msc;
 	struct eap_mschap_response	*msr;
@@ -346,7 +341,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 
 	/* length is already verified by the caller */
 	len = betoh16(hdr->eap_length);
-	ptr = (u_int8_t *)(eap + 1);
+	ptr = (uint8_t *)(eap + 1);
 
 	switch (hdr->eap_code) {
 	case EAP_CODE_REQUEST:
@@ -399,7 +394,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 				return (-1);
 			}
 			log_info("%s: %s %s id %d "
-			    "length %d valuesize %d name '%s' length %d",
+			    "length %d valuesize %d name '%s' length %zu",
 			    __func__,
 			    print_map(eap->eap_type, eap_type_map),
 			    print_map(ms->ms_opcode, eap_msopcode_map),
@@ -420,7 +415,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 				return (-1);
 			}
 			log_info("%s: %s %s id %d "
-			    "length %d valuesize %d name '%s' name-length %d",
+			    "length %d valuesize %d name '%s' name-length %zu",
 			    __func__,
 			    print_map(eap->eap_type, eap_type_map),
 			    print_map(ms->ms_opcode, eap_msopcode_map),
@@ -442,7 +437,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 					return (-1);
 				}
 				log_info("%s: %s %s request id %d "
-				    "length %d message '%s' message-len %d",
+				    "length %d message '%s' message-len %zu",
 				    __func__,
 				    print_map(eap->eap_type, eap_type_map),
 				    print_map(ms->ms_opcode, eap_msopcode_map),

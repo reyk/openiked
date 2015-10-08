@@ -1,4 +1,4 @@
-/*	$OpenBSD: parser.c,v 1.12 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: parser.c,v 1.14 2015/08/19 13:30:54 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -18,11 +18,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "openbsd-compat/sys-queue.h"
-#include "openbsd-compat/sys-tree.h"
+#include <sys/queue.h>
+#include <sys/tree.h>
 
 #include <err.h>
 #include <errno.h>
@@ -284,7 +283,7 @@ parse_addr(const char *word)
 const struct token *
 match_token(char *word, const struct token table[])
 {
-	u_int			 i, match = 0;
+	unsigned int		 i, match = 0;
 	const struct token	*t = NULL;
 
 	for (i = 0; table[i].type != ENDTOKEN; i++) {

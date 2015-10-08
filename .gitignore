@@ -11,7 +11,6 @@
 .DS_Store
 m4
 aclocal.m4
-Makefile
 autom4te.cache
 compile
 config.guess
@@ -27,8 +26,6 @@ missing
 parse.c
 stamp-h1
 ylwrap
-iked
-ikectl
 *_map.c
 clang_*
 *-scan-build

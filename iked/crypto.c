@@ -1,4 +1,4 @@
-/*	$OpenBSD: crypto.c,v 1.9 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: crypto.c,v 1.18 2015/08/21 11:59:27 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/param.h>	/* roundup */
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 
@@ -34,12 +34,44 @@
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <openssl/x509.h>
+#include <openssl/rsa.h>
 
 #include "iked.h"
 #include "ikev2.h"
 
+/* RFC 7427, A.1 */
+static const uint8_t sha256WithRSAEncryption[] = {
+	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+	0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00
+};
+static const uint8_t sha384WithRSAEncryption[] = {
+	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+	0xf7, 0x0d, 0x01, 0x01, 0x0c, 0x05, 0x00
+};
+static const uint8_t sha512WithRSAEncryption[] = {
+	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+	0xf7, 0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00
+};
+
+struct {
+	uint8_t		 sc_len;
+	const uint8_t	*sc_oid;
+	const EVP_MD	*(*sc_md)(void);
+} schemes[] = {
+	{ sizeof(sha256WithRSAEncryption),
+	    sha256WithRSAEncryption, EVP_sha256 },
+	{ sizeof(sha384WithRSAEncryption),
+	    sha384WithRSAEncryption, EVP_sha384 },
+	{ sizeof(sha512WithRSAEncryption),
+	    sha512WithRSAEncryption, EVP_sha512 },
+};
+
+int	_dsa_verify_init(struct iked_dsa *, const uint8_t *, size_t);
+size_t	_dsa_verify_offset(struct iked_dsa *, uint8_t *);
+int	_dsa_sign_encode(struct iked_dsa *, uint8_t *, size_t *);
+
 struct iked_hash *
-hash_new(u_int8_t type, u_int16_t id)
+hash_new(uint8_t type, uint16_t id)
 {
 	struct iked_hash	*hash;
 	const EVP_MD		*md = NULL;
@@ -197,7 +229,7 @@ hash_update(struct iked_hash *hash, void *buf, size_t len)
 void
 hash_final(struct iked_hash *hash, void *buf, size_t *len)
 {
-	u_int length = 0;
+	unsigned int	 length = 0;
 
 	HMAC_Final(hash->hash_ctx, buf, &length);
 	*len = (size_t)length;
@@ -222,7 +254,7 @@ hash_keylength(struct iked_hash *hash)
 }
 
 struct iked_cipher *
-cipher_new(u_int8_t type, u_int16_t id, u_int16_t id_length)
+cipher_new(uint8_t type, uint16_t id, uint16_t id_length)
 {
 	struct iked_cipher	*encr;
 	const EVP_CIPHER	*cipher = NULL;
@@ -328,7 +360,7 @@ cipher_setiv(struct iked_cipher *encr, void *iv, size_t len)
 	ibuf_release(encr->encr_iv);
 	if (iv != NULL) {
 		if (len < encr->encr_ivlength) {
-			log_debug("%s: invalid IV length %d", __func__, len);
+			log_debug("%s: invalid IV length %zu", __func__, len);
 			return (NULL);
 		}
 		encr->encr_iv = ibuf_new(iv, encr->encr_ivlength);
@@ -384,7 +416,7 @@ cipher_update(struct iked_cipher *encr, void *in, size_t inlen,
 
 	olen = 0;
 	if (!EVP_CipherUpdate(encr->encr_ctx, out, &olen, in, inlen)) {
-		ca_sslerror();
+		ca_sslerror(__func__);
 		*outlen = 0;
 		return;
 	}
@@ -398,7 +430,7 @@ cipher_final(struct iked_cipher *encr, void *out, size_t *outlen)
 
 	olen = 0;
 	if (!EVP_CipherFinal_ex(encr->encr_ctx, out, &olen)) {
-		ca_sslerror();
+		ca_sslerror(__func__);
 		*outlen = 0;
 		return;
 	}
@@ -434,23 +466,22 @@ cipher_outlength(struct iked_cipher *encr, size_t inlen)
 }
 
 struct iked_dsa *
-dsa_new(u_int16_t id, struct iked_hash *prf, int sign)
+dsa_new(uint16_t id, struct iked_hash *prf, int sign)
 {
 	struct iked_dsa		*dsap = NULL, dsa;
 
 	bzero(&dsa, sizeof(dsa));
 
 	switch (id) {
+	case IKEV2_AUTH_SIG:
+		if (sign)
+			dsa.dsa_priv = EVP_sha256(); /* XXX should be passed */
+		else
+			dsa.dsa_priv = NULL; /* set later by dsa_init() */
+		break;
 	case IKEV2_AUTH_RSA_SIG:
-		/*
-		 * XXX RFC4306 is not very clear about this and the
-		 * XXX informational RFC4718 says that we should use
-		 * XXX SHA1 here, but shouldn't we use the negotiated PRF
-		 * XXX alg instead?
-		 */
-		if ((dsa.dsa_priv =
-		    EVP_get_digestbyname("sha1WithRSAEncryption")) == NULL)
-			fatalx("dsa_new: cipher not available");
+		/* RFC5996 says we SHOULD use SHA1 here */
+		dsa.dsa_priv = EVP_sha1();
 		break;
 	case IKEV2_AUTH_SHARED_KEY_MIC:
 		if (prf == NULL || prf->hash_priv == NULL)
@@ -505,13 +536,13 @@ dsa_new(u_int16_t id, struct iked_hash *prf, int sign)
 }
 
 struct iked_dsa *
-dsa_sign_new(u_int16_t id, struct iked_hash *prf)
+dsa_sign_new(uint16_t id, struct iked_hash *prf)
 {
 	return (dsa_new(id, prf, 1));
 }
 
 struct iked_dsa *
-dsa_verify_new(u_int16_t id, struct iked_hash *prf)
+dsa_verify_new(uint16_t id, struct iked_hash *prf)
 {
 	return (dsa_new(id, prf, 0));
 }
@@ -537,7 +568,7 @@ dsa_free(struct iked_dsa *dsa)
 }
 
 struct ibuf *
-dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
+dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, uint8_t type)
 {
 	BIO		*rawcert = NULL;
 	X509		*cert = NULL;
@@ -578,6 +609,7 @@ dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
 		if (!EVP_PKEY_set1_RSA(pkey, rsa))
 			goto sslerr;
 
+		RSA_free(rsa);	/* pkey now has the reference */
 		dsa->dsa_cert = NULL;
 		dsa->dsa_key = pkey;
 		break;
@@ -591,7 +623,7 @@ dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
 	return (dsa->dsa_keydata);
 
  sslerr:
-	ca_sslerror();
+	ca_sslerror(__func__);
  err:
 	log_debug("%s: error", __func__);
 
@@ -608,7 +640,53 @@ dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
 }
 
 int
-dsa_init(struct iked_dsa *dsa)
+_dsa_verify_init(struct iked_dsa *dsa, const uint8_t *sig, size_t len)
+{
+	uint8_t			 oidlen;
+	size_t			 i;
+
+	if (dsa->dsa_priv != NULL)
+		return (0);
+	/*
+	 * For IKEV2_AUTH_SIG the oid of the authentication signature
+	 * is encoded in the first bytes of the auth message.
+	 */
+	if (dsa->dsa_method != IKEV2_AUTH_SIG)  {
+		log_debug("%s: dsa_priv not set for %s", __func__,
+		    print_map(dsa->dsa_method, ikev2_auth_map));
+		return (-1);
+	}
+	if (sig == NULL) {
+		log_debug("%s: signature missing", __func__);
+		return (-1);
+	}
+	if (len < 1) {
+		log_debug("%s: signature (%zu) too small for oid length",
+		    __func__, len);
+		return (-1);
+	}
+	memcpy(&oidlen, sig, sizeof(oidlen));
+	if (len < (size_t)oidlen + 1) {
+		log_debug("%s: signature (%zu) too small for oid (%u)",
+		    __func__, len, oidlen);
+		return (-1);
+	}
+	for (i = 0; i < nitems(schemes); i++) {
+		if (oidlen == schemes[i].sc_len &&
+		    memcmp(sig + 1, schemes[i].sc_oid,
+		    schemes[i].sc_len) == 0) {
+			dsa->dsa_priv = (*schemes[i].sc_md)();
+			log_debug("%s: signature scheme %zd selected",
+			    __func__, i);
+			return (0);
+		}
+	}
+	log_debug("%s: unsupported signature (%d)", __func__, oidlen);
+	return (-1);
+}
+
+int
+dsa_init(struct iked_dsa *dsa, const void *buf, size_t len)
 {
 	int	 ret;
 
@@ -621,8 +699,11 @@ dsa_init(struct iked_dsa *dsa)
 
 	if (dsa->dsa_sign)
 		ret = EVP_SignInit_ex(dsa->dsa_ctx, dsa->dsa_priv, NULL);
-	else
+	else {
+		if ((ret = _dsa_verify_init(dsa, buf, len)) != 0)
+			return (ret);
 		ret = EVP_VerifyInit_ex(dsa->dsa_ctx, dsa->dsa_priv, NULL);
+	}
 
 	return (ret ? 0 : -1);
 }
@@ -642,18 +723,44 @@ dsa_update(struct iked_dsa *dsa, const void *buf, size_t len)
 	return (ret ? 0 : -1);
 }
 
+/* Prefix signature hash with encoded type */
+int
+_dsa_sign_encode(struct iked_dsa *dsa, uint8_t *ptr, size_t *offp)
+{
+	if (offp)
+		*offp = 0;
+	if (dsa->dsa_method != IKEV2_AUTH_SIG)
+		return (0);
+	if (dsa->dsa_priv != EVP_sha256())
+		return (-1);
+	if (ptr) {
+		ptr[0] = sizeof(sha256WithRSAEncryption);
+		memcpy(ptr + 1, sha256WithRSAEncryption,
+		    sizeof(sha256WithRSAEncryption));
+	}
+	if (offp)
+		*offp = 1 + sizeof(sha256WithRSAEncryption);
+	return (0);
+}
+
 size_t
 dsa_length(struct iked_dsa *dsa)
 {
+	size_t		off = 0;
+
 	if (dsa->dsa_hmac)
 		return (EVP_MD_size(dsa->dsa_priv));
-	return (EVP_PKEY_size(dsa->dsa_key));
+	if (_dsa_sign_encode(dsa, NULL, &off) < 0)
+		fatal("dsa_length: internal error");
+	return (EVP_PKEY_size(dsa->dsa_key) + off);
 }
 
 ssize_t
 dsa_sign_final(struct iked_dsa *dsa, void *buf, size_t len)
 {
-	u_int		siglen;
+	unsigned int	 siglen;
+	size_t		 off = 0;
+	uint8_t		*ptr = buf;
 
 	if (len < dsa_length(dsa))
 		return (-1);
@@ -662,19 +769,36 @@ dsa_sign_final(struct iked_dsa *dsa, void *buf, size_t len)
 		if (!HMAC_Final(dsa->dsa_ctx, buf, &siglen))
 			return (-1);
 	} else {
-		if (!EVP_SignFinal(dsa->dsa_ctx, buf, &siglen,
+		if (_dsa_sign_encode(dsa, ptr, &off) < 0)
+			return (-1);
+		if (!EVP_SignFinal(dsa->dsa_ctx, ptr + off, &siglen,
 		    dsa->dsa_key))
 			return (-1);
+		siglen += off;
 	}
 
 	return (siglen);
 }
 
+size_t
+_dsa_verify_offset(struct iked_dsa *dsa, uint8_t *ptr)
+{
+	/*
+	 * XXX assumes that _dsa_verify_init() has already checked
+	 * the encoded method.
+	 */
+	if (dsa->dsa_method == IKEV2_AUTH_SIG)
+		return (ptr[0] + 1);
+	return (0);
+}
+
 ssize_t
 dsa_verify_final(struct iked_dsa *dsa, void *buf, size_t len)
 {
-	u_int8_t	 sig[EVP_MAX_MD_SIZE];
-	u_int		 siglen = sizeof(sig);
+	uint8_t		 sig[EVP_MAX_MD_SIZE];
+	unsigned int	 siglen = sizeof(sig);
+	uint8_t		*ptr = buf;
+	size_t		 off = 0;
 
 	if (dsa->dsa_hmac) {
 		if (!HMAC_Final(dsa->dsa_ctx, sig, &siglen))
@@ -682,9 +806,11 @@ dsa_verify_final(struct iked_dsa *dsa, void *buf, size_t len)
 		if (siglen != len || memcmp(buf, sig, siglen) != 0)
 			return (-1);
 	} else {
-		if (EVP_VerifyFinal(dsa->dsa_ctx, buf, len,
+		if ((off = _dsa_verify_offset(dsa, ptr)) >= len)
+			return (-1);
+		if (EVP_VerifyFinal(dsa->dsa_ctx, ptr + off, len - off,
 		    dsa->dsa_key) != 1) {
-			ca_sslerror();
+			ca_sslerror(__func__);
 			return (-1);
 		}
 	}

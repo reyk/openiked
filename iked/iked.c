@@ -1,4 +1,4 @@
-/*	$OpenBSD: iked.c,v 1.17 2013/03/21 04:30:14 deraadt Exp $	*/
+/*	$OpenBSD: iked.c,v 1.25 2015/08/21 11:59:27 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,23 +16,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
-
-#include <net/if.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-
-#ifdef HAVE_DEPRECATED_DAEMON
-/* Apple deprected daemon() and prints an warning that breaks -Werror */
-#define daemon XXX_daemon
-#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,11 +35,6 @@
 #include "iked.h"
 #include "ikev2.h"
 
-#ifdef HAVE_DEPRECATED_DAEMON
-#undef daemon
-extern int daemon(int, int);
-#endif
-
 __dead void usage(void);
 
 void	 parent_shutdown(struct iked *);
@@ -67,12 +49,6 @@ static struct privsep_proc procs[] = {
 	{ "ikev2",	PROC_IKEV2, parent_dispatch_ikev2, ikev2 },
 	{ "ca",		PROC_CERT, parent_dispatch_ca, caproc, IKED_CA }
 };
-
-#ifndef HAVE_SETPROCTITLE
-/* Saved arguments to main(). */
-char **saved_argv;
-int saved_argc;
-#endif
 
 __dead void
 usage(void)
@@ -95,24 +71,6 @@ main(int argc, char *argv[])
 	struct privsep	*ps;
 
 	log_init(1);
-
-#ifndef HAVE_SETPROCTITLE
-	/* Save argv. Duplicate so setproctitle emulation doesn't clobber it */
-	saved_argc = argc;
-	saved_argv = calloc(argc + 1, sizeof(*saved_argv));
-	if (saved_argv == NULL)
-		fatal("calloc: argv");
-	for (c = 0; c < argc; c++) {
-		saved_argv[c] = strdup(argv[c]);
-		if (saved_argv[c] == NULL)
-			fatal("strdup: saved_argv[c]");
-	}
-	saved_argv[c] = NULL;
-
-	/* Prepare for later setproctitle emulation */
-	compat_init_setproctitle(argc, argv);
-	argv = saved_argv;
-#endif
 
 	while ((c = getopt(argc, argv, "6dD:nf:vSTt")) != -1) {
 		switch (c) {
@@ -159,13 +117,14 @@ main(int argc, char *argv[])
 
 	ps = &env->sc_ps;
 	ps->ps_env = env;
+	TAILQ_INIT(&ps->ps_rcsocks);
 
 	if ((opts & (IKED_OPT_NONATT|IKED_OPT_NATT)) ==
 	    (IKED_OPT_NONATT|IKED_OPT_NATT))
 		errx(1, "conflicting NAT-T options");
 
-	if (strlcpy(env->sc_conffile, conffile, MAXPATHLEN) >= MAXPATHLEN)
-		errx(1, "config file exceeds MAXPATHLEN");
+	if (strlcpy(env->sc_conffile, conffile, PATH_MAX) >= PATH_MAX)
+		errx(1, "config file exceeds PATH_MAX");
 
 	ca_sslinit();
 	policy_init(env);
@@ -187,6 +146,8 @@ main(int argc, char *argv[])
 		err(1, "failed to daemonize");
 
 	group_init();
+
+	ps->ps_ninstances = 1;
 	proc_init(ps, procs, nitems(procs));
 
 	setproctitle("parent");
@@ -198,14 +159,16 @@ main(int argc, char *argv[])
 	signal_set(&ps->ps_evsigchld, SIGCHLD, parent_sig_handler, ps);
 	signal_set(&ps->ps_evsighup, SIGHUP, parent_sig_handler, ps);
 	signal_set(&ps->ps_evsigpipe, SIGPIPE, parent_sig_handler, ps);
+	signal_set(&ps->ps_evsigusr1, SIGUSR1, parent_sig_handler, ps);
 
 	signal_add(&ps->ps_evsigint, NULL);
 	signal_add(&ps->ps_evsigterm, NULL);
 	signal_add(&ps->ps_evsigchld, NULL);
 	signal_add(&ps->ps_evsighup, NULL);
 	signal_add(&ps->ps_evsigpipe, NULL);
+	signal_add(&ps->ps_evsigusr1, NULL);
 
-	proc_config(ps, procs, nitems(procs));
+	proc_listen(ps, procs, nitems(procs));
 
 	if (parent_configure(env) == -1)
 		fatalx("configuration failed");
@@ -221,9 +184,6 @@ int
 parent_configure(struct iked *env)
 {
 	struct sockaddr_storage	 ss;
-#if defined(HAVE_APPLE_NATT)
-	int			 udpencap;
-#endif
 
 	if (parse_config(env->sc_conffile, env) == -1) {
 		proc_kill(&env->sc_ps);
@@ -246,15 +206,6 @@ parent_configure(struct iked *env)
 	bzero(&ss, sizeof(ss));
 	ss.ss_family = AF_INET;
 
-#if defined(HAVE_APPLE_NATT)
-	if ((env->sc_opts & IKED_OPT_NONATT) == 0) {
-		udpencap = IKED_NATT_PORT;
-		if (sysctlbyname("net.inet.ipsec.esp_port", NULL, NULL,
-		    &udpencap, sizeof(udpencap)) != 0)
-			fatalx("failed to set NAT-T port");
-	}
-#endif
-
 	if ((env->sc_opts & IKED_OPT_NATT) == 0)
 		config_setsocket(env, &ss, ntohs(IKED_IKE_PORT), PROC_IKEV2);
 	if ((env->sc_opts & IKED_OPT_NONATT) == 0)
@@ -270,6 +221,7 @@ parent_configure(struct iked *env)
 
 	config_setcoupled(env, env->sc_decoupled ? 0 : 1);
 	config_setmode(env, env->sc_passive ? 1 : 0);
+	config_setocsp(env);
 
 	return (0);
 }
@@ -299,6 +251,7 @@ parent_reload(struct iked *env, int reset, const char *filename)
 
 		config_setcoupled(env, env->sc_decoupled ? 0 : 1);
 		config_setmode(env, env->sc_passive ? 1 : 0);
+		config_setocsp(env);
 	} else {
 		config_setreset(env, reset, PROC_IKEV1);
 		config_setreset(env, reset, PROC_IKEV2);
@@ -327,12 +280,17 @@ parent_sig_handler(int sig, short event, void *arg)
 	case SIGPIPE:
 		log_info("%s: ignoring SIGPIPE", __func__);
 		break;
+	case SIGUSR1:
+		log_info("%s: ignoring SIGUSR1", __func__);
+		break;
 	case SIGTERM:
 	case SIGINT:
 		die = 1;
 		/* FALLTHROUGH */
 	case SIGCHLD:
 		do {
+			int len;
+
 			pid = waitpid(-1, &status, WNOHANG);
 			if (pid <= 0)
 				continue;
@@ -340,16 +298,20 @@ parent_sig_handler(int sig, short event, void *arg)
 			fail = 0;
 			if (WIFSIGNALED(status)) {
 				fail = 1;
-				asprintf(&cause, "terminated; signal %d",
+				len = asprintf(&cause, "terminated; signal %d",
 				    WTERMSIG(status));
 			} else if (WIFEXITED(status)) {
 				if (WEXITSTATUS(status) != 0) {
 					fail = 1;
-					asprintf(&cause, "exited abnormally");
+					len = asprintf(&cause,
+					    "exited abnormally");
 				} else
-					asprintf(&cause, "exited okay");
+					len = asprintf(&cause, "exited okay");
 			} else
 				fatalx("unexpected cause of SIGCHLD");
+
+			if (len == -1)
+				fatal("asprintf");
 
 			die = 1;
 
@@ -400,7 +362,7 @@ parent_dispatch_ca(int fd, struct privsep_proc *p, struct imsg *imsg)
 	struct iked	*env = p->p_ps->ps_env;
 	int		 v;
 	char		*str = NULL;
-	u_int		 type = imsg->hdr.type;
+	unsigned int	 type = imsg->hdr.type;
 
 	switch (type) {
 	case IMSG_CTL_RESET:
@@ -412,8 +374,10 @@ parent_dispatch_ca(int fd, struct privsep_proc *p, struct imsg *imsg)
 	case IMSG_CTL_DECOUPLE:
 	case IMSG_CTL_ACTIVE:
 	case IMSG_CTL_PASSIVE:
-		proc_compose_imsg(env, PROC_IKEV1, type, -1, NULL, 0);
-		proc_compose_imsg(env, PROC_IKEV2, type, -1, NULL, 0);
+		proc_compose_imsg(&env->sc_ps, PROC_IKEV1, -1,
+		    type, -1, NULL, 0);
+		proc_compose_imsg(&env->sc_ps, PROC_IKEV2, -1,
+		    type, -1, NULL, 0);
 		break;
 	case IMSG_CTL_RELOAD:
 		if (IMSG_DATA_SIZE(imsg) > 0)
@@ -421,6 +385,9 @@ parent_dispatch_ca(int fd, struct privsep_proc *p, struct imsg *imsg)
 		parent_reload(env, 0, str);
 		if (str != NULL)
 			free(str);
+		break;
+	case IMSG_OCSP_FD:
+		ocsp_connect(env);
 		break;
 	default:
 		return (-1);
