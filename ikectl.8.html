@@ -1,8 +1,15 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="resource-type" content="document">
+<meta charset="utf-8"/>
+<style>
+table.head, table.foot { width: 100%; }
+td.head-rtitle, td.foot-os { text-align: right; }
+td.head-vol { text-align: center; }
+table.foot td { width: 50%; }
+table.head td { width: 33%; }
+div.spacer { margin: 1em 0; }
+</style>
 <title>
 IKECTL(8)</title>
     <script type="text/javascript">
@@ -18,17 +25,14 @@ IKECTL(8)</title>
 </head>
 <body>
 <div class="mandoc">
-<table summary="Document Header" class="head" width="100%">
-<col width="30%">
-<col width="30%">
-<col width="30%">
+<table class="head">
 <tbody>
 <tr>
 <td class="head-ltitle">
 IKECTL(8)</td>
-<td class="head-vol" align="center">
-OpenBSD System Manager's Manual</td>
-<td class="head-rtitle" align="right">
+<td class="head-vol">
+System Manager's Manual</td>
+<td class="head-rtitle">
 IKECTL(8)</td>
 </tr>
 </tbody>
@@ -37,27 +41,28 @@ IKECTL(8)</td>
 <h1 id="x4e414d45">NAME</h1> <b class="name">ikectl</b> &#8212; <span class="desc">control the IKEv2 daemon</span></div>
 <div class="section">
 <h1 id="x53594e4f50534953">SYNOPSIS</h1><table class="synopsis">
-<col style="width: 6.00ex;">
-<col>
+<col style="width: 6.00ex;"/>
+<col/>
 <tbody>
 <tr>
 <td>
 ikectl</td>
 <td>
-&#91;<span class="opt"><b class="flag">&#45;q</b></span>&#93; &#91;<span class="opt"><b class="flag">&#45;s</b> <i class="arg">socket</i></span>&#93; <i class="arg">command</i> &#91;<span class="opt"><i class="arg">arg ...</i></span>&#93;</td>
+[<span class="opt"><b class="flag">-q</b></span>] [<span class="opt"><b class="flag">-s</b> <i class="arg">socket</i></span>] <i class="arg">command</i> [<span class="opt"><i class="arg">arg ...</i></span>]</td>
 </tr>
 </tbody>
 </table>
 </div>
 <div class="section">
-<h1 id="x4445534352495054494f4e">DESCRIPTION</h1> The <b class="name">ikectl</b> program controls the <a class="link-man">iked(8)</a> daemon and provides commands to maintain a simple X.509 certificate authority (CA) for IKEv2 peers.<p>
+<h1 id="x4445534352495054494f4e">DESCRIPTION</h1> The <b class="name">ikectl</b> program controls the <a class="link-man">iked(8)</a> daemon and provides commands to maintain a simple X.509 certificate authority (CA) for IKEv2 peers.<div class="spacer">
+</div>
 The options are as follows:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">&#45;q</b></dt>
+<b class="flag">-q</b></dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Don't ask for confirmation of any default options.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">&#45;s</b> <i class="arg">socket</i></dt>
+<b class="flag">-s</b> <i class="arg">socket</i></dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Use <i class="arg">socket</i> instead of the default <i class="file">/var/run/iked.sock</i> to communicate with <a class="link-man">iked(8)</a>.</dd>
 </dl>
@@ -123,10 +128,11 @@ Flush the local user database.</dd>
 </dl>
 </div>
 <div class="section">
-<h1 id="x504b4920414e4420434552544946494341544520415554484f5249545920434f4d4d414e4453">PKI AND CERTIFICATE AUTHORITY COMMANDS</h1> In order to use public key based authentication with IKEv2, a public key infrastructure (PKI) has to be set up to create and sign the peer certificates. <b class="name">ikectl</b> includes commands to simplify maintenance of the PKI and to set up a simple certificate authority (CA) for <a class="link-man">iked(8)</a> and its peers.<p>
+<h1 id="x504b4920414e4420434552544946494341544520415554484f5249545920434f4d4d414e4453">PKI AND CERTIFICATE AUTHORITY COMMANDS</h1> In order to use public key based authentication with IKEv2, a public key infrastructure (PKI) has to be set up to create and sign the peer certificates. <b class="name">ikectl</b> includes commands to simplify maintenance of the PKI and to set up a simple certificate authority (CA) for <a class="link-man">iked(8)</a> and its peers.<div class="spacer">
+</div>
 The following commands are available to control the CA:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">create</b> &#91;<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">create</b> [<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Create a new certificate authority with the specified <i class="arg">name</i>. The command will prompt for a CA password unless it is specified with the optional <i class="arg">password</i> argument. The password will be saved in a protected file <i class="file">ikeca.passwd</i> in the CA directory and used for subsequent commands.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
@@ -134,28 +140,29 @@ Create a new certificate authority with the specified <i class="arg">name</i>. T
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Delete the certificate authority with the specified <i class="arg">name</i>.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">export</b> &#91;<span class="opt"><b class="flag">peer</b> <i class="arg">peer</i></span>&#93; &#91;<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">export</b> [<span class="opt"><b class="flag">peer</b> <i class="arg">peer</i></span>] [<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Export the certificate authority with the specified <i class="arg">name</i> into the current directory for transport to other systems. This command will create a compressed tarball called <i class="file">ca.tgz</i> in the local directory and optionally <i class="file">ca.zip</i> if the &#8216;zip&#8217; tool is installed. The optional <i class="arg">peer</i> argument can be used to specify the address or FQDN of the local gateway which will be written into a text file <i class="file">peer.txt</i> and included in the archives.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">install</b> &#91;<span class="opt"><i class="arg">path</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">install</b> [<span class="opt"><i class="arg">path</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Install the certificate and Certificate Revocation List (CRL) for CA <i class="arg">name</i> as the currently active CA or into the specified <i class="arg">path</i>.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">create</b> &#91;<span class="opt"><b class="cmd">server</b> | <b class="cmd">client</b></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">create</b> [<span class="opt"><b class="cmd">server</b> | <b class="cmd">client</b></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
-Create a private key and certificate for <i class="arg">host</i> and sign then with the key of certificate authority with the specified <i class="arg">name</i>.<p>
+Create a private key and certificate for <i class="arg">host</i> and sign then with the key of certificate authority with the specified <i class="arg">name</i>.<div class="spacer">
+</div>
 The certificate will be valid for client and server authentication by default by setting both flags as the extended key usage in the certificate; this can be restricted using the optional <b class="cmd">server</b> or <b class="cmd">client</b> argument.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
 <b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">delete</b></dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Deletes the private key and certificates associated with <i class="arg">host</i>.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">export</b> &#91;<span class="opt"><b class="flag">peer</b> <i class="arg">peer</i></span>&#93; &#91;<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">export</b> [<span class="opt"><b class="flag">peer</b> <i class="arg">peer</i></span>] [<span class="opt"><b class="flag">password</b> <i class="arg">password</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Export key files for <i class="arg">host</i> of the certificate authority with the specified <i class="arg">name</i> into the current directory for transport to other systems. This command will create a compressed tarball <i class="file">host.tgz</i> in the local directory and optionally <i class="file">host.zip</i> if the &#8216;zip&#8217; tool is installed. The optional <i class="arg">peer</i> argument can be used to specify the address or FQDN of the local gateway which will be written into a text file <i class="file">peer.txt</i> and included in the archives.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">install</b> &#91;<span class="opt"><i class="arg">path</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificate</b> <i class="arg">host</i> <b class="flag">install</b> [<span class="opt"><i class="arg">path</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Install the private and public key for <i class="arg">host</i> into the active configuration or specified <i class="arg">path</i>.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
@@ -163,7 +170,7 @@ Install the private and public key for <i class="arg">host</i> into the active c
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Revoke the certificate specified by <i class="arg">host</i> and generate a new Certificate Revocation List (CRL).</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">show</b> <b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificates</b> &#91;<span class="opt"><i class="arg">host</i></span>&#93;</dt>
+<b class="flag">show</b> <b class="flag">ca</b> <i class="arg">name</i> <b class="flag">certificates</b> [<span class="opt"><i class="arg">host</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Display a listing of certificates associated with CA <i class="arg">name</i> or display certificate details if <i class="arg">host</i> is specified.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
@@ -171,7 +178,7 @@ Display a listing of certificates associated with CA <i class="arg">name</i> or 
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Create a private key for <i class="arg">host</i> if one does not already exist.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
-<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">key</b> <i class="arg">host</i> <b class="flag">install</b> &#91;<span class="opt"><i class="arg">path</i></span>&#93;</dt>
+<b class="flag">ca</b> <i class="arg">name</i> <b class="flag">key</b> <i class="arg">host</i> <b class="flag">install</b> [<span class="opt"><i class="arg">path</i></span>]</dt>
 <dd class="list-tag" style="margin-left: 6.00ex;">
 Install the private and public keys for <i class="arg">host</i> into the active configuration or specified <i class="arg">path</i>.</dd>
 <dt class="list-tag" style="margin-top: 1.00em;">
@@ -187,50 +194,61 @@ Source the private key for <i class="arg">host</i> from the named <i class="arg"
 <div class="section">
 <h1 id="x46494c4553">FILES</h1><dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
 <dt class="list-tag" style="margin-top: 0.00em;">
-/etc/iked/</dt>
+<i class="file">/etc/iked/</i></dt>
 <dd class="list-tag" style="margin-left: 20.00ex;">
 Active configuration.</dd>
 <dt class="list-tag" style="margin-top: 0.00em;">
-/etc/ssl/</dt>
+<i class="file">/etc/ssl/</i></dt>
 <dd class="list-tag" style="margin-left: 20.00ex;">
 Directory to store the CA files.</dd>
 <dt class="list-tag" style="margin-top: 0.00em;">
-/usr/share/iked</dt>
+<i class="file">/usr/share/iked</i></dt>
 <dd class="list-tag" style="margin-left: 20.00ex;">
 If this optional directory exists, <b class="name">ikectl</b> will include the contents with the <b class="flag">ca export</b> commands.</dd>
 <dt class="list-tag" style="margin-top: 0.00em;">
-/var/run/iked.sock</dt>
+<i class="file">/var/run/iked.sock</i></dt>
 <dd class="list-tag" style="margin-left: 20.00ex;">
 default <span class="unix">UNIX</span>-domain socket used for communication with <a class="link-man">iked(8)</a></dd>
 </dl>
 </div>
 <div class="section">
-<h1 id="x4558414d504c4553">EXAMPLES</h1> First create a new certificate authority:<p>
+<h1 id="x4558414d504c4553">EXAMPLES</h1> First create a new certificate authority:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 # ikectl ca vpn create</pre>
-<p>
-Now create the certificates for the VPN peers. The specified hostname, either IP address or FQDN, will be saved in the signed certificate and has to match the IKEv2 identity, or <i class="arg">srcid</i>, of the peers:<p>
+<div class="spacer">
+</div>
+Now create the certificates for the VPN peers. The specified hostname, either IP address or FQDN, will be saved in the signed certificate and has to match the IKEv2 identity, or <i class="arg">srcid</i>, of the peers:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 # ikectl ca vpn certificate 10.1.2.3 create 
 # ikectl ca vpn certificate 10.2.3.4 create 
 # ikectl ca vpn certificate 10.3.4.5 create</pre>
-<p>
-It is possible that the host that was used to create the CA is also one of the VPN peers. In this case you can install the peer and CA certificates locally:<p>
+<div class="spacer">
+</div>
+It is possible that the host that was used to create the CA is also one of the VPN peers. In this case you can install the peer and CA certificates locally:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 # ikectl ca vpn install 
 # ikectl ca vpn certificate 10.1.2.3 install</pre>
-<p>
-Now export the individual host key, the certificate and the CA certificate to each other peer. First run the <b class="cmd">export</b> command to create tarballs that include the required files:<p>
+<div class="spacer">
+</div>
+Now export the individual host key, the certificate and the CA certificate to each other peer. First run the <b class="cmd">export</b> command to create tarballs that include the required files:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 # ikectl ca vpn certificate 10.2.3.4 export 
 # ikectl ca vpn certificate 10.3.4.5 export</pre>
-<p>
-These commands will produce two tarballs <span class="emph">10.2.3.4.tgz</span> and <span class="emph">10.3.4.5.tgz</span>. Copy these tarballs over to the appropriate peers and extract them to the <i class="file">/etc/iked/</i> directory:<p>
+<div class="spacer">
+</div>
+These commands will produce two tarballs <span class="emph">10.2.3.4.tgz</span> and <span class="emph">10.3.4.5.tgz</span>. Copy these tarballs over to the appropriate peers and extract them to the <i class="file">/etc/iked/</i> directory:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 10.2.3.4# tar -C /etc/iked -xzpf 10.2.3.4.tgz 
 10.3.4.5# tar -C /etc/iked -xzpf 10.3.4.5.tgz</pre>
-<p>
-<b class="name">ikectl</b> will also create &#8216;zip&#8217; archives 10.2.3.4.zip and 10.3.4.5.zip in addition to the tarballs if the zip tool is found in <i class="file">/usr/local/bin/zip</i>. These archives can be exported to peers running Windows and will include the certificates in a format that is supported by the OS. The zip tool can be installed from the <span class="unix">OpenBSD</span> packages or ports collection before running the <b class="cmd">export</b> commands, see <a class="link-man">packages(7)</a> for more information. For example:<p>
+<div class="spacer">
+</div>
+<b class="name">ikectl</b> will also create &#8216;zip&#8217; archives 10.2.3.4.zip and 10.3.4.5.zip in addition to the tarballs if the zip tool is found in <i class="file">/usr/local/bin/zip</i>. These archives can be exported to peers running Windows and will include the certificates in a format that is supported by the OS. The zip tool can be installed from the <span class="unix">OpenBSD</span> packages or ports collection before running the <b class="cmd">export</b> commands, see <a class="link-man">packages(7)</a> for more information. For example:<div class="spacer">
+</div>
 <pre style="margin-left: 5.00ex;" class="lit display">
 # pkg_add zip</pre>
 </div>
@@ -239,21 +257,21 @@ These commands will produce two tarballs <span class="emph">10.2.3.4.tgz</span> 
 <div class="section">
 <h1 id="x484953544f5259">HISTORY</h1> The <b class="name">ikectl</b> program first appeared in <span class="unix">OpenBSD&#160;4.8</span>.</div>
 <div class="section">
-<h1 id="x415554484f5253">AUTHORS</h1> The <b class="name">ikectl</b> program was written by <span class="author">Reyk Floeter</span> &#60;reyk@openbsd.org&#62; and <span class="author">Jonathan Gray</span> &#60;jsg@openbsd.org&#62;.</div>
+<h1 id="x415554484f5253">AUTHORS</h1> The <b class="name">ikectl</b> program was written by <span class="author">Reyk Floeter</span> &lt;<a class="link-mail" href="mailto:reyk@openbsd.org">reyk@openbsd.org</a>&gt; and<br/>
+<span class="author">Jonathan Gray</span> &lt;<a class="link-mail" href="mailto:jsg@openbsd.org">jsg@openbsd.org</a>&gt;.</div>
 <div class="section">
 <h1 id="x43415645415453">CAVEATS</h1> For ease of use, the <b class="cmd">ca</b> commands maintain all peers' private keys on the CA machine. In contrast to a &#8216;real&#8217; CA, it does not support signing of public keys that have been imported from peers that do not want to expose their private keys to the CA.</div>
-<table summary="Document Footer" class="foot" width="100%">
-<col width="50%">
-<col width="50%">
+<table class="foot">
 <tbody>
 <tr>
 <td class="foot-date">
-September 18, 2012</td>
-<td class="foot-os" align="right">
-OpenBSD 5.2</td>
+July 27, 2015</td>
+<td class="foot-os">
+OpenBSD 5.8</td>
 </tr>
 </tbody>
 </table>
 </div>
 </body>
 </html>
+
