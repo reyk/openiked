@@ -1,4 +1,4 @@
-/*	$OpenBSD: util.c,v 1.18 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: util.c,v 1.26 2015/01/16 06:39:58 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -17,23 +17,17 @@
  */
 
 #include <sys/types.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-#include <net/if.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
 #include <netdb.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <event.h>
@@ -65,17 +59,13 @@ socket_af(struct sockaddr *sa, in_port_t port)
 	switch (sa->sa_family) {
 	case AF_INET:
 		((struct sockaddr_in *)sa)->sin_port = port;
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 		((struct sockaddr_in *)sa)->sin_len =
 		    sizeof(struct sockaddr_in);
-#endif
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)sa)->sin6_port = port;
-#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 		((struct sockaddr_in6 *)sa)->sin6_len =
 		    sizeof(struct sockaddr_in6);
-#endif
 		break;
 	default:
 		errno = EPFNOSUPPORT;
@@ -86,18 +76,34 @@ socket_af(struct sockaddr *sa, in_port_t port)
 }
 
 in_port_t
-socket_getport(struct sockaddr_storage *ss)
+socket_getport(struct sockaddr *sa)
 {
-	switch (ss->ss_family) {
+	switch (sa->sa_family) {
 	case AF_INET:
-		return (ntohs(((struct sockaddr_in *)ss)->sin_port));
+		return (ntohs(((struct sockaddr_in *)sa)->sin_port));
 	case AF_INET6:
-		return (ntohs(((struct sockaddr_in6 *)ss)->sin6_port));
+		return (ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
 	default:
 		return (0);
 	}
 
 	/* NOTREACHED */
+	return (0);
+}
+
+int
+socket_setport(struct sockaddr *sa, in_port_t port)
+{
+	switch (sa->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)sa)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+		break;
+	default:
+		return (-1);
+	}
 	return (0);
 }
 
@@ -112,7 +118,6 @@ socket_getaddr(int s, struct sockaddr_storage *ss)
 int
 socket_bypass(int s, struct sockaddr *sa)
 {
-#if defined(__OpenBSD__)
 	int	 v, *a;
 	int	 a4[] = {
 		    IPPROTO_IP,
@@ -164,47 +169,6 @@ socket_bypass(int s, struct sockaddr *sa)
 		return (-1);
 	}
 #endif
-#else /* __OpenBSD__ */
-	int	*a;
-	int	 a4[] = {
-		    IPPROTO_IP,
-		    IP_IPSEC_POLICY
-	};
-	int	 a6[] = {
-		    IPPROTO_IPV6,
-		    IPV6_IPSEC_POLICY,
-
-	};
-	struct sadb_x_policy pol = {
-		    SADB_UPDATE,
-		    SADB_EXT_SENSITIVITY,
-		    IPSEC_POLICY_BYPASS,
-		    0, 0, 0, 0
-	};
-
-	switch (sa->sa_family) {
-	case AF_INET:
-		a = a4;
-		break;
-	case AF_INET6:
-		a = a6;
-		break;
-	default:
-		log_warn("%s: invalid address family", __func__);
-		return (-1);
-	}
-
-	pol.sadb_x_policy_dir = IPSEC_DIR_INBOUND;
-	if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
-		log_warn("%s: IPSEC_DIR_INBOUND", __func__);
-		return (-1);
-	}
-	pol.sadb_x_policy_dir = IPSEC_DIR_OUTBOUND;
-	if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
-		log_warn("%s: IPSEC_DIR_OUTBOUND", __func__);
-		return (-1);
-	}
-#endif /* !__OpenBSD__ */
 
 	return (0);
 }
@@ -231,46 +195,26 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		goto bad;
 	}
 
-#ifdef SO_REUSEPORT
 	val = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(int)) == -1) {
 		log_warn("%s: failed to set reuseport", __func__);
 		goto bad;
 	}
-#endif
-#ifdef SO_REUSEADDR
 	val = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(int)) == -1) {
 		log_warn("%s: failed to set reuseaddr", __func__);
 		goto bad;
 	}
-#endif
 
 	if (sa->sa_family == AF_INET) {
 		val = 1;
-		if (setsockopt(s, IPPROTO_IP,
-#if defined(IP_RECVDSTADDR)
-		    IP_RECVDSTADDR,
-#elif defined(IP_PKTINFO)
-		    IP_PKTINFO,
-#else
-#error IPv4 packet info not supported
-#endif
+		if (setsockopt(s, IPPROTO_IP, IP_RECVDSTADDR,
 		    &val, sizeof(int)) == -1) {
 			log_warn("%s: failed to set IPv4 packet info",
 			    __func__);
 			goto bad;
 		}
 	} else {
-#ifdef IPV6_V6ONLY
-		val = 1;
-		if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-		    &val, sizeof(int)) == -1) {
-			log_warn("%s: failed to set IPv6-only mode",
-			    __func__);
-			goto bad;
-		}
-#endif
 		val = 1;
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 		    &val, sizeof(int)) == -1) {
@@ -280,7 +224,7 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		}
 	}
 
-	if (bind(s, sa, SA_LEN(sa)) == -1) {
+	if (bind(s, sa, sa->sa_len) == -1) {
 		log_warn("%s: failed to bind UDP socket", __func__);
 		goto bad;
 	}
@@ -369,9 +313,6 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 		struct cmsghdr hdr;
 		char	buf[CMSG_SPACE(sizeof(struct sockaddr_storage))];
 	} cmsgbuf;
-#if !defined(IP_RECVDSTADDR) && defined(IP_PKTINFO)
-	struct in_pktinfo	*pkt;
-#endif
 
 	bzero(&msg, sizeof(msg));
 	bzero(&cmsgbuf.buf, sizeof(cmsgbuf.buf));
@@ -388,7 +329,7 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	if ((ret = recvmsg(s, &msg, 0)) == -1)
 		return (-1);
 
-	*fromlen = SA_LEN(from);
+	*fromlen = from->sa_len;
 	*tolen = 0;
 
 	if (getsockname(s, to, tolen) != 0)
@@ -398,7 +339,6 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		switch (from->sa_family) {
 		case AF_INET:
-#if defined(IP_RECVDSTADDR)
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_RECVDSTADDR) {
 				in = (struct sockaddr_in *)to;
@@ -407,32 +347,13 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 				memcpy(&in->sin_addr, CMSG_DATA(cmsg),
 				    sizeof(struct in_addr));
 			}
-#elif defined(IP_PKTINFO)
-			if (cmsg->cmsg_level == IPPROTO_IP &&
-			    cmsg->cmsg_type == IP_PKTINFO) {
-				in = (struct sockaddr_in *)to;
-				in->sin_family = AF_INET;
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
-				in->sin_len = *tolen = sizeof(*in);
-#else
-				*tolen = sizeof(*in);
-#endif
-				pkt = (struct in_pktinfo *)CMSG_DATA(cmsg);
-				memcpy(&in->sin_addr, &pkt->ipi_addr,
-				    sizeof(struct in_addr));
-			}
-#endif
 			break;
 		case AF_INET6:
 			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
 			    cmsg->cmsg_type == IPV6_PKTINFO) {
 				in6 = (struct sockaddr_in6 *)to;
 				in6->sin6_family = AF_INET6;
-#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 				in6->sin6_len = *tolen = sizeof(*in6);
-#else
-				*tolen = sizeof(*in6);
-#endif
 				pkt6 = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 				memcpy(&in6->sin6_addr, &pkt6->ipi6_addr,
 				    sizeof(struct in6_addr));
@@ -457,6 +378,9 @@ print_spi(u_int64_t spi, int size)
 	ptr = buf[i];
 
 	switch (size) {
+	case 2:
+		snprintf(ptr, 32, "0x%04x", (u_int16_t)spi);
+		break;
 	case 4:
 		snprintf(ptr, 32, "0x%08x", (u_int32_t)spi);
 		break;
@@ -503,7 +427,7 @@ void
 lc_string(char *str)
 {
 	for (; *str != '\0'; str++)
-		*str = tolower(*str);
+		*str = tolower((unsigned char)*str);
 }
 
 void
@@ -512,7 +436,7 @@ print_hex(u_int8_t *buf, off_t offset, size_t length)
 	u_int		 i;
 	extern int	 verbose;
 
-	if (verbose < 2 || !length)
+	if (verbose < 3 || !length)
 		return;
 
 	for (i = 0; i < length; i++) {
@@ -543,12 +467,12 @@ print_hexval(u_int8_t *buf, off_t offset, size_t length)
 }
 
 const char *
-print_bits(u_short v, char *bits)
+print_bits(u_short v, u_char *bits)
 {
 	static char	 buf[IKED_CYCLE_BUFFERS][BUFSIZ];
 	static int	 idx = 0;
 	u_int		 i, any = 0, j = 0;
-	char		 c;
+	u_char		 c;
 
 	if (!bits)
 		return ("");
@@ -568,7 +492,7 @@ print_bits(u_short v, char *bits)
 			}
 			any = 1;
 			for (; (c = *bits) > 32; bits++) {
-				buf[idx][j++] = tolower(c);
+				buf[idx][j++] = tolower((unsigned char)c);
 				if (j >= sizeof(buf[idx]))
 					return (buf[idx]);
 			}
@@ -603,7 +527,7 @@ mask2prefixlen6(struct sockaddr *sa)
 	 * the possibly truncated sin6_addr struct.
 	 */
 	ap = (u_int8_t *)&sa_in6->sin6_addr;
-	ep = (u_int8_t *)sa_in6 + SA_LEN(sa);
+	ep = (u_int8_t *)sa_in6 + sa_in6->sin6_len;
 	for (; ap < ep; ap++) {
 		/* this "beauty" is adopted from sbin/route/show.c ... */
 		switch (*ap) {
@@ -675,7 +599,7 @@ prefixlen2mask6(u_int8_t prefixlen, u_int32_t *mask)
 }
 
 const char *
-print_host(struct sockaddr_storage *ss, char *buf, size_t len)
+print_host(struct sockaddr *sa, char *buf, size_t len)
 {
 	static char	sbuf[IKED_CYCLE_BUFFERS][NI_MAXHOST + 7];
 	static int	idx = 0;
@@ -689,18 +613,18 @@ print_host(struct sockaddr_storage *ss, char *buf, size_t len)
 			idx = 0;
 	}
 
-	if (ss->ss_family == AF_UNSPEC) {
+	if (sa->sa_family == AF_UNSPEC) {
 		strlcpy(buf, "any", len);
 		return (buf);
 	}
 
-	if (getnameinfo((struct sockaddr *)ss, SS_LEN(ss),
+	if (getnameinfo(sa, sa->sa_len,
 	    buf, len, NULL, 0, NI_NUMERICHOST) != 0) {
 		buf[0] = '\0';
 		return (NULL);
 	}
 
-	if ((port = socket_getport(ss)) != 0) {
+	if ((port = socket_getport(sa)) != 0) {
 		snprintf(pbuf, sizeof(pbuf), ":%d", port);
 		(void)strlcat(buf, pbuf, len);
 	}
@@ -715,7 +639,7 @@ get_string(u_int8_t *ptr, size_t len)
 	char	*str;
 
 	for (i = 0; i < len; i++)
-		if (!isprint((char)ptr[i]))
+		if (!isprint(ptr[i]))
 			break;
 
 	if ((str = calloc(1, i + 1)) == NULL)

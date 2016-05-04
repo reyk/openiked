@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikeca.c,v 1.25 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: ikeca.c,v 1.30 2015/01/16 06:40:17 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010 Jonathan Gray <jsg@openbsd.org>
@@ -16,7 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -29,6 +28,7 @@
 #include <fcntl.h>
 #include <fts.h>
 #include <dirent.h>
+#include <limits.h>
 
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
@@ -52,7 +52,7 @@
 #endif
 
 #ifndef PATH_OPENSSL
-#define PATH_OPENSSL	"/usr/sbin/openssl"
+#define PATH_OPENSSL	"/usr/bin/openssl"
 #endif
 #ifndef PATH_ZIP
 #define PATH_ZIP	"/usr/local/bin/zip"
@@ -189,7 +189,7 @@ int
 ca_sign(struct ca *ca, char *keyname, int type, char *envargs)
 {
 	char		cmd[PATH_MAX * 2];
-	char		hostname[MAXHOSTNAMELEN];
+	char		hostname[HOST_NAME_MAX+1];
 	char		name[128];
 
 	strlcpy(name, keyname, sizeof(name));
@@ -443,8 +443,8 @@ ca_show_certs(struct ca *ca, char *name)
 		err(1, "could not open directory %s", ca->sslpath);
 
 	while ((de = readdir(dir)) != NULL) {
-		if (NAMLEN(de) > 4) {
-			p = de->d_name + NAMLEN(de) - 4;
+		if (de->d_namlen > 4) {
+			p = de->d_name + de->d_namlen - 4;
 			if (strcmp(".crt", p) != 0)
 				continue;
 			snprintf(path, sizeof(path), "%s/%s", ca->sslpath,
@@ -473,8 +473,9 @@ fcopy(char *src, char *dst, mode_t mode)
 		err(1, "open %s", src);
 
 	if ((ofd = open(dst, O_WRONLY|O_CREAT|O_TRUNC, mode)) == -1) {
+		int saved_errno = errno;
 		close(ifd);
-		err(1, "open %s", dst);
+		errc(1, saved_errno, "open %s", dst);
 	}
 
 	while ((r = read(ifd, buf, sizeof(buf))) > 0) {
@@ -794,7 +795,7 @@ ca_revoke(struct ca *ca, char *keyname)
 	    pass, ca->sslpath, ca->sslpath);
 	system(cmd);
 
-	bzero(pass, len);
+	explicit_bzero(pass, len);
 	free(pass);
 
 	return (0);
@@ -806,7 +807,6 @@ ca_setup(char *caname, int create, int quiet, char *pass)
 	struct stat	 st;
 	struct ca	*ca;
 	char		 path[PATH_MAX];
-	u_int32_t	 rnd[256];
 
 	if (stat(PATH_OPENSSL, &st) == -1)
 		err(1, "openssl binary not available");
@@ -845,9 +845,6 @@ ca_setup(char *caname, int create, int quiet, char *pass)
 
 	if (create && stat(ca->passfile, &st) == -1 && errno == ENOENT)
 		ca_newpass(ca->passfile, pass);
-
-	arc4random_buf(rnd, sizeof(rnd));
-	RAND_seed(rnd, sizeof(rnd));
 
 	return (ca);
 }
