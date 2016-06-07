@@ -51,8 +51,8 @@ struct group {
 
 #define DH_MAXSZ	1024	/* 8192 bits */
 
-void             group_init(void);
-void             group_free(struct group *);
+void		 group_init(void);
+void		 group_free(struct group *);
 struct group	*group_get(u_int32_t);
 
 int		 dh_getlen(struct group *);

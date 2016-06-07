@@ -44,7 +44,7 @@ timer_set(struct iked *env, struct iked_timer *tmr,
 	if (evtimer_initialized(&tmr->tmr_ev) &&
 	    evtimer_pending(&tmr->tmr_ev, NULL)) {
 		evtimer_del(&tmr->tmr_ev);
-        }
+	}
 	evtimer_set(&tmr->tmr_ev, timer_callback, tmr);
 }
 

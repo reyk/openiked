@@ -36,7 +36,7 @@
 #if defined(HAVE_DECL_SHUT_RD) && HAVE_DECL_SHUT_RD == 0
 enum
 {
-  SHUT_RD = 0,		/* No more receptions.  */
+  SHUT_RD = 0,		/* No more receptions.	*/
   SHUT_WR,			/* No more transmissions.  */
   SHUT_RDWR			/* No more receptions or transmissions.  */
 };
@@ -46,11 +46,11 @@ enum
 #endif
 
 #ifndef IPTOS_LOWDELAY
-# define IPTOS_LOWDELAY          0x10
-# define IPTOS_THROUGHPUT        0x08
-# define IPTOS_RELIABILITY       0x04
-# define IPTOS_LOWCOST           0x02
-# define IPTOS_MINCOST           IPTOS_LOWCOST
+# define IPTOS_LOWDELAY		 0x10
+# define IPTOS_THROUGHPUT	 0x08
+# define IPTOS_RELIABILITY	 0x04
+# define IPTOS_LOWCOST		 0x02
+# define IPTOS_MINCOST		 IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
 
 #if !defined(HAVE_NETINET_IP_IPSP_H) && (defined(HAVE_NETINET6_IPSEC_H) || \
@@ -110,17 +110,17 @@ enum
 #endif
 
 #ifndef MAXLOGNAME
-#define MAXLOGNAME      LOGIN_NAME_MAX
+#define MAXLOGNAME	LOGIN_NAME_MAX
 #endif
 
 #ifndef STDIN_FILENO
-# define STDIN_FILENO    0
+# define STDIN_FILENO	 0
 #endif
 #ifndef STDOUT_FILENO
-# define STDOUT_FILENO   1
+# define STDOUT_FILENO	 1
 #endif
 #ifndef STDERR_FILENO
-# define STDERR_FILENO   2
+# define STDERR_FILENO	 2
 #endif
 
 #ifndef NGROUPS_MAX	/* Disable groupaccess if NGROUP_MAX is not set */
@@ -132,7 +132,7 @@ enum
 #endif
 
 #if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
-# define O_NONBLOCK      00004	/* Non Blocking Open */
+# define O_NONBLOCK	 00004	/* Non Blocking Open */
 #endif
 
 #ifndef S_ISDIR
@@ -353,8 +353,8 @@ typedef u_int16_t	in_port_t;
 #if defined(BROKEN_SYS_TERMIO_H) && !defined(_STRUCT_WINSIZE)
 #define _STRUCT_WINSIZE
 struct winsize {
-      unsigned short ws_row;          /* rows, in characters */
-      unsigned short ws_col;          /* columns, in character */
+      unsigned short ws_row;	      /* rows, in characters */
+      unsigned short ws_col;	      /* columns, in character */
       unsigned short ws_xpixel;       /* horizontal size, pixels */
       unsigned short ws_ypixel;       /* vertical size, pixels */
 };
@@ -474,7 +474,7 @@ struct sadb_sa_natt {
 #endif
 
 #ifndef roundup
-# define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+# define roundup(x, y)	 ((((x)+((y)-1))/(y))*(y))
 #endif
 
 #ifndef timersub
@@ -490,9 +490,9 @@ struct sadb_sa_natt {
 #endif
 
 #ifndef timespeccmp
-#define timespeccmp(a, b, cmp)			       		\
-	(((a)->tv_sec == (b)->tv_sec) ?			       	\
-	 ((a)->tv_nsec cmp (b)->tv_nsec) :	       		\
+#define timespeccmp(a, b, cmp)					\
+	(((a)->tv_sec == (b)->tv_sec) ?				\
+	 ((a)->tv_nsec cmp (b)->tv_nsec) :			\
 	 ((a)->tv_sec cmp (b)->tv_sec))
 #endif
 
@@ -610,7 +610,7 @@ struct sadb_sa_natt {
 #  define LITTLE_ENDIAN  1234
 # endif /* LITTLE_ENDIAN */
 # ifndef BIG_ENDIAN
-#  define BIG_ENDIAN     4321
+#  define BIG_ENDIAN	 4321
 # endif /* BIG_ENDIAN */
 # ifdef WORDS_BIGENDIAN
 #  define BYTE_ORDER BIG_ENDIAN

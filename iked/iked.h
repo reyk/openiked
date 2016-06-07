@@ -93,7 +93,7 @@ struct ctl_conn {
 	struct imsgev		 iev;
 };
 TAILQ_HEAD(ctl_connlist, ctl_conn);
-extern  struct ctl_connlist ctl_conns;
+extern	struct ctl_connlist ctl_conns;
 
 enum privsep_procid privsep_process;
 
@@ -146,7 +146,7 @@ struct iked_flow {
 	u_int8_t			 flow_saproto;
 	u_int8_t			 flow_ipproto;
 	u_int8_t			 flow_type;
-	u_int32_t                        flow_id;
+	u_int32_t			 flow_id;
 	struct iked_addr		*flow_local;	/* outer source */
 	struct iked_addr		*flow_peer;	/* outer dest */
 	struct iked_sa			*flow_ikesa;	/* parent SA */
@@ -175,7 +175,7 @@ struct iked_childsa {
 	u_int16_t			 csa_encrid;	/* encryption xform id */
 
 	struct ibuf			*csa_integrkey;	/* auth key */
-	u_int16_t		 	 csa_integrid;	/* auth xform id */
+	u_int16_t			 csa_integrid;	/* auth xform id */
 
 	struct iked_addr		*csa_local;	/* outer source */
 	struct iked_addr		*csa_peer;	/* outer dest */

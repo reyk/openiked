@@ -667,7 +667,7 @@ host_spec	: STRING			{
 		;
 
 host		: host_spec			{ $$ = $1; }
-		| host_spec '(' host_spec ')'   {
+		| host_spec '(' host_spec ')'	{
 			if (($1->af != AF_UNSPEC) && ($3->af != AF_UNSPEC) &&
 			    ($3->af != $1->af)) {
 				yyerror("Flow NAT address family mismatch");
@@ -1973,8 +1973,8 @@ ifa_exists(const char *ifa_name)
 {
 	struct ipsec_addr_wrap	*n;
 #if defined(SIOCGIFGMEMB)
-        struct ifgroupreq        ifgr;
-        int                      s;
+	struct ifgroupreq	 ifgr;
+	int			 s;
 #endif
 
 	if (iftab == NULL)
@@ -2045,7 +2045,7 @@ ifa_grouplookup(const char *ifa_name)
 	close(s);
 	return (h);
 #else
-        return (NULL);
+	return (NULL);
 #endif
 }
 
@@ -2412,7 +2412,7 @@ create_ike(char *name, int af, u_int8_t ipproto, struct ipsec_hosts *hosts,
     struct ipsec_addr_wrap *ikecfg)
 {
 	char			 idstr[IKED_ID_SIZE];
-	u_int 			 idtype = IKEV2_ID_NONE;
+	u_int			 idtype = IKEV2_ID_NONE;
 	struct ipsec_addr_wrap	*ipa, *ipb;
 	struct iked_policy	 pol;
 	struct iked_proposal	 prop[2];

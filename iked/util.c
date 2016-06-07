@@ -119,99 +119,99 @@ int
 socket_bypass(int s, struct sockaddr *sa)
 {
 #if defined(__OpenBSD__)
-        int      v, *a;
-        int      a4[] = {
-                    IPPROTO_IP,
-                    IP_AUTH_LEVEL,
-                    IP_ESP_TRANS_LEVEL,
-                    IP_ESP_NETWORK_LEVEL,
+	int	 v, *a;
+	int	 a4[] = {
+		    IPPROTO_IP,
+		    IP_AUTH_LEVEL,
+		    IP_ESP_TRANS_LEVEL,
+		    IP_ESP_NETWORK_LEVEL,
 #ifdef IPV6_IPCOMP_LEVEL
-                    IP_IPCOMP_LEVEL
+		    IP_IPCOMP_LEVEL
 #endif
-        };
-        int      a6[] = {
-                    IPPROTO_IPV6,
-                    IPV6_AUTH_LEVEL,
-                    IPV6_ESP_TRANS_LEVEL,
-                    IPV6_ESP_NETWORK_LEVEL,
+	};
+	int	 a6[] = {
+		    IPPROTO_IPV6,
+		    IPV6_AUTH_LEVEL,
+		    IPV6_ESP_TRANS_LEVEL,
+		    IPV6_ESP_NETWORK_LEVEL,
 #ifdef IPV6_IPCOMP_LEVEL
-                    IPV6_IPCOMP_LEVEL
+		    IPV6_IPCOMP_LEVEL
 #endif
-        };
+	};
 
-        switch (sa->sa_family) {
-        case AF_INET:
-                a = a4;
-                break;
-        case AF_INET6:
-                a = a6;
-                break;
-        default:
-                log_warn("%s: invalid address family", __func__);
-                return (-1);
-        }
-        v = IPSEC_LEVEL_BYPASS;
-        if (setsockopt(s, a[0], a[1], &v, sizeof(v)) == -1) {
-                log_warn("%s: AUTH_LEVEL", __func__);
-                return (-1);
-        }
-        if (setsockopt(s, a[0], a[2], &v, sizeof(v)) == -1) {
-                log_warn("%s: ESP_TRANS_LEVEL", __func__);
-                return (-1);
-        }
-        if (setsockopt(s, a[0], a[3], &v, sizeof(v)) == -1) {
-                log_warn("%s: ESP_NETWORK_LEVEL", __func__);
-                return (-1);
-        }
+	switch (sa->sa_family) {
+	case AF_INET:
+		a = a4;
+		break;
+	case AF_INET6:
+		a = a6;
+		break;
+	default:
+		log_warn("%s: invalid address family", __func__);
+		return (-1);
+	}
+	v = IPSEC_LEVEL_BYPASS;
+	if (setsockopt(s, a[0], a[1], &v, sizeof(v)) == -1) {
+		log_warn("%s: AUTH_LEVEL", __func__);
+		return (-1);
+	}
+	if (setsockopt(s, a[0], a[2], &v, sizeof(v)) == -1) {
+		log_warn("%s: ESP_TRANS_LEVEL", __func__);
+		return (-1);
+	}
+	if (setsockopt(s, a[0], a[3], &v, sizeof(v)) == -1) {
+		log_warn("%s: ESP_NETWORK_LEVEL", __func__);
+		return (-1);
+	}
 #ifdef IP_IPCOMP_LEVEL
-        if (setsockopt(s, a[0], a[4], &v, sizeof(v)) == -1) {
-                log_warn("%s: IPCOMP_LEVEL", __func__);
-                return (-1);
-        }
+	if (setsockopt(s, a[0], a[4], &v, sizeof(v)) == -1) {
+		log_warn("%s: IPCOMP_LEVEL", __func__);
+		return (-1);
+	}
 #endif
 #else /* __OpenBSD__ */
-        int     *a;
-        int      a4[] = {
-                    IPPROTO_IP,
-                    IP_IPSEC_POLICY
-        };
-        int      a6[] = {
-                    IPPROTO_IPV6,
-                    IPV6_IPSEC_POLICY,
+	int	*a;
+	int	 a4[] = {
+		    IPPROTO_IP,
+		    IP_IPSEC_POLICY
+	};
+	int	 a6[] = {
+		    IPPROTO_IPV6,
+		    IPV6_IPSEC_POLICY,
 
-        };
-        struct sadb_x_policy pol = {
-                    SADB_UPDATE,
-                    SADB_EXT_SENSITIVITY,
-                    IPSEC_POLICY_BYPASS,
-                    0, 0, 0, 0
-        };
+	};
+	struct sadb_x_policy pol = {
+		    SADB_UPDATE,
+		    SADB_EXT_SENSITIVITY,
+		    IPSEC_POLICY_BYPASS,
+		    0, 0, 0, 0
+	};
 
-        switch (sa->sa_family) {
-        case AF_INET:
-                a = a4;
-                break;
-        case AF_INET6:
-                a = a6;
-                break;
-        default:
-                log_warn("%s: invalid address family", __func__);
-                return (-1);
-        }
+	switch (sa->sa_family) {
+	case AF_INET:
+		a = a4;
+		break;
+	case AF_INET6:
+		a = a6;
+		break;
+	default:
+		log_warn("%s: invalid address family", __func__);
+		return (-1);
+	}
 
-        pol.sadb_x_policy_dir = IPSEC_DIR_INBOUND;
-        if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
-                log_warn("%s: IPSEC_DIR_INBOUND", __func__);
-                return (-1);
-        }
-        pol.sadb_x_policy_dir = IPSEC_DIR_OUTBOUND;
-        if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
-                log_warn("%s: IPSEC_DIR_OUTBOUND", __func__);
-                return (-1);
-        }
+	pol.sadb_x_policy_dir = IPSEC_DIR_INBOUND;
+	if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
+		log_warn("%s: IPSEC_DIR_INBOUND", __func__);
+		return (-1);
+	}
+	pol.sadb_x_policy_dir = IPSEC_DIR_OUTBOUND;
+	if (setsockopt(s, a[0], a[1], &pol, sizeof(pol)) == -1) {
+		log_warn("%s: IPSEC_DIR_OUTBOUND", __func__);
+		return (-1);
+	}
 #endif /* !__OpenBSD__ */
 
-        return (0);
+	return (0);
 }
 
 int
@@ -621,7 +621,7 @@ prefixlen2mask(u_int8_t prefixlen)
 struct in6_addr *
 prefixlen2mask6(u_int8_t prefixlen, u_int32_t *mask)
 {
-	static struct in6_addr  s6;
+	static struct in6_addr	s6;
 	int			i;
 
 	if (prefixlen > 128)

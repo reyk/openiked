@@ -38,8 +38,8 @@
 #define IKED_PRIVKEY	IKED_CA "private/local.key"
 #define IKED_PUBKEY	"local.pub"
 
-#define IKED_OCSP_RESPCERT        "ocsp/responder.crt"
-#define IKED_OCSP_ISSUER          "ocsp/issuer.crt"
+#define IKED_OCSP_RESPCERT	  "ocsp/responder.crt"
+#define IKED_OCSP_ISSUER	  "ocsp/issuer.crt"
 
 #define IKED_OPT_VERBOSE	0x00000001
 #define IKED_OPT_NOACTION	0x00000002

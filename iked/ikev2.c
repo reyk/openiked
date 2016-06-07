@@ -2297,11 +2297,11 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 	if (ret == 0) {
 		sa_state(env, sa, IKEV2_STATE_ESTABLISHED);
 		/**
-                 * Logs about the secure session are tagged with LOG_SESSION
-                 * so that it can be extracted for customer visiblity purposes
-                 */
+		 * Logs about the secure session are tagged with LOG_SESSION
+		 * so that it can be extracted for customer visiblity purposes
+		 */
 		log_info("LOG_SESSION: Secure session established to peer %s \
-                  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
 		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
 		  NULL, 0));
 		timer_set(env, &sa->sa_timer, ikev2_ike_sa_alive, sa);
@@ -2316,9 +2316,9 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 		ikev2_childsa_delete(env, sa, 0, 0, NULL, 1);
 	if (ret != 0) {
 		log_info("LOG_SESSION: Authentication failure in establishing \
-                  secure session from %s to peer %s",
-                  print_host((struct sockaddr *)&sa->sa_local.addr, NULL, 0),
-                  print_host((struct sockaddr *)&sa->sa_peer.addr, NULL, 0));
+		  secure session from %s to peer %s",
+		  print_host((struct sockaddr *)&sa->sa_local.addr, NULL, 0),
+		  print_host((struct sockaddr *)&sa->sa_peer.addr, NULL, 0));
 	}
 	ibuf_release(e);
 	return (ret);
@@ -2446,9 +2446,9 @@ int
 ikev2_set_sa_proposal(struct iked_sa *sa, struct iked_policy *pol,
     u_int proto)
 {
-	struct iked_proposal	 	*prop, *copy;
-	struct iked_transform	 	*xform;
-	u_int			 	 i;
+	struct iked_proposal		*prop, *copy;
+	struct iked_transform		*xform;
+	u_int				 i;
 
 	/* create copy of the policy proposals */
 	config_free_proposals(&sa->sa_proposals, proto);
@@ -2863,7 +2863,7 @@ ikev2_init_create_child_sa(struct iked *env, struct iked_message *msg)
 	ret = ikev2_childsa_enable(env, sa);
 	if ((ret == 0) && (csa)) {
 		log_info("LOG_SESSION: Rekeying secure session key peer %s \
-                  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
 		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
 		  NULL, 0));
 	}
@@ -2978,8 +2978,8 @@ ikev2_ikesa_enable(struct iked *env, struct iked_sa *sa, struct iked_sa *nsa)
 void
 ikev2_ikesa_delete(struct iked *env, struct iked_sa *sa, int initiator)
 {
-	struct ibuf                     *buf = NULL;
-	struct ikev2_delete             *del;
+	struct ibuf			*buf = NULL;
+	struct ikev2_delete		*del;
 
 	if (initiator) {
 		/* Send PAYLOAD_DELETE */
@@ -3012,7 +3012,7 @@ ikev2_resp_create_child_sa(struct iked *env, struct iked_message *msg)
 	struct iked_childsa		*csa;
 	struct iked_proposal		*prop;
 	struct iked_proposals		 proposals;
-	struct iked_kex		 	*kex, *kextmp = NULL;
+	struct iked_kex			*kex, *kextmp = NULL;
 	struct iked_sa			*nsa = NULL, *sa = msg->msg_sa;
 	struct iked_spi			*spi, *rekey = &msg->msg_rekey;
 	struct ikev2_keyexchange	*ke;

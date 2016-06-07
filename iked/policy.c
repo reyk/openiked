@@ -100,12 +100,12 @@ policy_lookup(struct iked *env, struct iked_message *msg)
  * Check if host is in a subnet
  */
 bool is_in_subnet(struct sockaddr_in* host, struct sockaddr_in* subnet,
-                  u_int8_t subnet_mask) {
-        uint32_t host_addr = ntohl(host->sin_addr.s_addr);
-        uint32_t subnet_addr = ntohl(subnet->sin_addr.s_addr);
+		  u_int8_t subnet_mask) {
+	uint32_t host_addr = ntohl(host->sin_addr.s_addr);
+	uint32_t subnet_addr = ntohl(subnet->sin_addr.s_addr);
 
-        unsigned int mask = 0xFFFFFFFF << (32 - subnet_mask);
-        return ((host_addr & mask) == (subnet_addr & mask));
+	unsigned int mask = 0xFFFFFFFF << (32 - subnet_mask);
+	return ((host_addr & mask) == (subnet_addr & mask));
 }
 
 bool isipv4_flow_and_policy(struct iked_addr fsrc, struct iked_addr fdst,
@@ -128,8 +128,8 @@ bool flow_matches_policy(struct iked_addr fsrc, struct iked_addr fdst,
 	fdst_addr = (struct sockaddr_in*)&(fdst.addr);
 	pdst_addr = (struct sockaddr_in*)&(pdst.addr);
 	return (isipv4_flow_and_policy(fsrc, fdst, psrc, pdst) &&
-                is_in_subnet(fsrc_addr, psrc_addr, psrc.addr_mask) &&
-                is_in_subnet(fdst_addr, pdst_addr, pdst.addr_mask));
+		is_in_subnet(fsrc_addr, psrc_addr, psrc.addr_mask) &&
+		is_in_subnet(fdst_addr, pdst_addr, pdst.addr_mask));
 }
 
 struct iked_policy *
@@ -165,31 +165,31 @@ policy_test(struct iked *env, struct iked_policy *key)
 			 * and find a matching flow.
 			 */
 			if (key->pol_nflows &&
-                            (flowkey = RB_MIN(iked_flows,
-                                              &key->pol_flows)) != NULL) {
-                                bool match = false;
-                                struct iked_addr psrc, pdst, fsrc, fdst;
-                                /*
-                                 * Check if incoming flow from kernel upcall
-                                 * matches any of the configuration policies
-                                 * or rules specified in iked.conf
-                                 */
-                                RB_FOREACH(flow, iked_flows, &p->pol_flows) {
-                                     psrc = flow->flow_src;
-                                     pdst = flow->flow_dst;
-                                     fsrc = flowkey->flow_src;
-                                     fdst = flowkey->flow_dst;
+			    (flowkey = RB_MIN(iked_flows,
+					      &key->pol_flows)) != NULL) {
+				bool match = false;
+				struct iked_addr psrc, pdst, fsrc, fdst;
+				/*
+				 * Check if incoming flow from kernel upcall
+				 * matches any of the configuration policies
+				 * or rules specified in iked.conf
+				 */
+				RB_FOREACH(flow, iked_flows, &p->pol_flows) {
+				     psrc = flow->flow_src;
+				     pdst = flow->flow_dst;
+				     fsrc = flowkey->flow_src;
+				     fdst = flowkey->flow_dst;
 				     if (flow_matches_policy(fsrc, fdst,
 							    psrc, pdst)) {
-                                           match = true;
-                                           break;
-                                     }
-                                }
-                                if (!match) {
-                                    p = TAILQ_NEXT(p, pol_entry);
-                                    continue;
-                                }
-                        }
+					   match = true;
+					   break;
+				     }
+				}
+				if (!match) {
+				    p = TAILQ_NEXT(p, pol_entry);
+				    continue;
+				}
+			}
 			/* make sure the peer ID matches */
 			if (key->pol_peerid.id_type &&
 			    (key->pol_peerid.id_type != p->pol_peerid.id_type ||
@@ -286,7 +286,7 @@ sa_state(struct iked *env, struct iked_sa *sa, int state)
 {
 	const char		*a;
 	const char		*b;
-	int 			ostate = sa->sa_state;
+	int			ostate = sa->sa_state;
 
 	a = print_map(ostate, ikev2_state_map);
 	b = print_map(state, ikev2_state_map);
