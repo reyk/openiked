@@ -22,7 +22,7 @@ AC_CONFIG_HEADER([config.h])
 AC_CANONICAL_HOST
 AC_C_BIGENDIAN
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_PROG_CC
