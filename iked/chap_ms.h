@@ -1,4 +1,4 @@
-/*	$OpenBSD: chap_ms.h,v 1.3 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: chap_ms.h,v 1.5 2015/06/11 18:49:09 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _CHAP_MS_H
-#define _CHAP_MS_H
+#ifndef CHAP_MS_H
+#define CHAP_MS_H
 
 #define MSCHAP_CHALLENGE_SZ	8
 #define MSCHAPV2_CHALLENGE_SZ	16
@@ -34,18 +34,14 @@ void	 mschap_nt_response(u_int8_t *, u_int8_t *, u_int8_t *, int,
 void	 mschap_auth_response(u_int8_t *, int, u_int8_t *, u_int8_t *,
 	    u_int8_t *, u_int8_t *, int, u_int8_t *);
 
-void	 mschap_nt(u_int8_t *, u_int8_t *);
-void	 mschap_lanman(u_int8_t *, u_int8_t *, u_int8_t *);
-
 void	 mschap_ntpassword_hash(u_int8_t *, int, u_int8_t *);
 void	 mschap_challenge_hash(u_int8_t *, u_int8_t *, u_int8_t *,
 	    int, u_int8_t *);
 
 void	 mschap_asymetric_startkey(u_int8_t *, u_int8_t *, int, int, int);
 void	 mschap_masterkey(u_int8_t *, u_int8_t *, u_int8_t *);
-void	 mschap_newkey(u_int8_t *, u_int8_t *, long, u_int8_t *);
 void	 mschap_radiuskey(u_int8_t *, const u_int8_t *, const u_int8_t *,
 	    const u_int8_t *);
 void	 mschap_msk(u_int8_t *, int, u_int8_t *, u_int8_t *);
 
-#endif /* _CHAP_MS_H */
+#endif /* CHAP_MS_H */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikev2.h,v 1.12 2013/03/30 16:31:37 reyk Exp $	*/
+/*	$OpenBSD: ikev2.h,v 1.19 2015/06/11 18:49:09 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _IKEV2_H
-#define _IKEV2_H
+#ifndef IKED_IKEV2_H
+#define IKED_IKEV2_H
 
 #define IKEV2_VERSION		0x20	/* IKE version 2.0 */
 #define IKEV1_VERSION		0x10	/* IKE version 1.0 */
@@ -32,12 +32,14 @@
 #define IKEV2_STATE_COOKIE		1	/* cookie requested */
 #define IKEV2_STATE_SA_INIT		2	/* init IKE SA */
 #define IKEV2_STATE_EAP			3	/* EAP requested */
-#define IKEV2_STATE_AUTH_REQUEST	4	/* auth received */
-#define IKEV2_STATE_AUTH_SUCCESS	5	/* authenticated */
-#define IKEV2_STATE_VALID		6	/* validated peer certs */
-#define IKEV2_STATE_EAP_VALID		7	/* EAP validated */
-#define IKEV2_STATE_ESTABLISHED		8	/* active IKE SA */
-#define IKEV2_STATE_CLOSED		9	/* delete this SA */
+#define IKEV2_STATE_EAP_SUCCESS		4	/* EAP succeeded */
+#define IKEV2_STATE_AUTH_REQUEST	5	/* auth received */
+#define IKEV2_STATE_AUTH_SUCCESS	6	/* authenticated */
+#define IKEV2_STATE_VALID		7	/* authenticated AND validated certs */
+#define IKEV2_STATE_EAP_VALID		8	/* EAP validated */
+#define IKEV2_STATE_ESTABLISHED		9	/* active IKE SA */
+#define IKEV2_STATE_CLOSING		10	/* expect delete for this SA */
+#define IKEV2_STATE_CLOSED		11	/* delete this SA */
 
 extern struct iked_constmap ikev2_state_map[];
 
@@ -125,6 +127,7 @@ struct ikev2_sa_proposal {
 #define IKEV2_SAPROTO_ESP		3	/* ESP */
 #define IKEV2_SAPROTO_FC_ESP_HEADER	4	/* RFC4595 */
 #define IKEV2_SAPROTO_FC_CT_AUTH	5	/* RFC4595 */
+#define IKEV2_SAPROTO_IPCOMP		204	/* private, should be 4 */
 
 extern struct iked_constmap ikev2_saproto_map[];
 
@@ -239,7 +242,7 @@ extern struct iked_constmap ikev2_xformauth_map[];
 #define IKEV2_XFORMDH_BRAINPOOL_P256R1	28	/* DH Group 28 */
 #define IKEV2_XFORMDH_BRAINPOOL_P384R1	29	/* DH Group 29 */
 #define IKEV2_XFORMDH_BRAINPOOL_P512R1	30	/* DH Group 30 */
-#define IKEV2_XFORMDH_MAX		31
+#define IKEV2_XFORMDH_X_CURVE25519	1034	/* curve25519 */
 
 extern struct iked_constmap ikev2_xformdh_map[];
 
@@ -347,6 +350,7 @@ struct ikev2_notify {
 #define IKEV2_N_PSK_CONFIRM			16426	/* RFC6631 */
 #define IKEV2_N_ERX_SUPPORTED			16427	/* RFC6867 */
 #define IKEV2_N_IFOM_CAPABILITY			16428	/* OA3GPP */
+#define IKEV2_N_SIGNATURE_HASH_ALGORITHMS	16431	/* RFC7427 */
 
 extern struct iked_constmap ikev2_n_map[];
 
@@ -451,8 +455,19 @@ struct ikev2_auth {
 #define IKEV2_AUTH_ECDSA_384		10	/* RFC4754 */
 #define IKEV2_AUTH_ECDSA_512		11	/* RFC4754 */
 #define IKEV2_AUTH_GSPM			12	/* RFC6467 */
+#define IKEV2_AUTH_SIG			14	/* RFC7427 */
 
 extern struct iked_constmap ikev2_auth_map[];
+
+/* Notifications used together with IKEV2_AUTH_SIG */
+
+#define IKEV2_SIGHASH_RESERVED		0	/* RFC7427 */
+#define IKEV2_SIGHASH_SHA1		1	/* RFC7427 */
+#define IKEV2_SIGHASH_SHA2_256		2	/* RFC7427 */
+#define IKEV2_SIGHASH_SHA2_384		3	/* RFC7427 */
+#define IKEV2_SIGHASH_SHA2_512		4	/* RFC7427 */
+
+extern struct iked_constmap ikev2_sighash_map[];
 
 /*
  * CP payload
@@ -500,4 +515,4 @@ struct ikev2_cfg {
 
 extern struct iked_constmap ikev2_cfg_map[];
 
-#endif /* _IKEV2_H */
+#endif /* IKED_IKEV2_H */

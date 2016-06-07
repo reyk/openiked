@@ -1,4 +1,4 @@
-/*	$OpenBSD: config.c,v 1.20 2013/03/21 04:30:14 deraadt Exp $	*/
+/*	$OpenBSD: config.c,v 1.36 2015/07/07 19:13:31 markus Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,24 +16,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-
-#include <net/if.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <getopt.h>
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
@@ -75,26 +66,47 @@ config_getspi(void)
 {
 	u_int64_t	 spi;
 
-	spi = ((u_int64_t)arc4random() << 32) | arc4random();
-	if (spi == 0)
-		return (config_getspi());
+	do {
+		arc4random_buf(&spi, sizeof spi);
+	} while (spi == 0);
 
 	return (spi);
 }
 
 void
+config_free_kex(struct iked_kex *kex)
+{
+	if (kex == NULL)
+		return;
+
+	ibuf_release(kex->kex_inonce);
+	ibuf_release(kex->kex_rnonce);
+
+	if (kex->kex_dhgroup != NULL)
+		group_free(kex->kex_dhgroup);
+	ibuf_release(kex->kex_dhiexchange);
+	ibuf_release(kex->kex_dhrexchange);
+
+	free(kex);
+}
+
+void
 config_free_sa(struct iked *env, struct iked_sa *sa)
 {
-	(void)RB_REMOVE(iked_sas, &env->sc_sas, sa);
-
-	timer_deregister(env, &sa->sa_timer);
+	timer_del(env, &sa->sa_timer);
+	timer_del(env, &sa->sa_rekey);
 
 	config_free_proposals(&sa->sa_proposals, 0);
 	config_free_childsas(env, &sa->sa_childsas, NULL, NULL);
 	sa_free_flows(env, &sa->sa_flows);
 
+	if (sa->sa_addrpool) {
+		(void)RB_REMOVE(iked_addrpool, &env->sc_addrpool, sa);
+		free(sa->sa_addrpool);
+	}
+
 	if (sa->sa_policy) {
-		(void)RB_REMOVE(iked_sapeers, &sa->sa_policy->pol_sapeers, sa);
+		TAILQ_REMOVE(&sa->sa_policy->pol_sapeers, sa, sa_peer_entry);
 		policy_unref(env, sa->sa_policy);
 	}
 
@@ -145,8 +157,10 @@ config_new_policy(struct iked *env)
 	if ((pol = calloc(1, sizeof(*pol))) == NULL)
 		return (NULL);
 
+	/* XXX caller does this again */
 	TAILQ_INIT(&pol->pol_proposals);
-	RB_INIT(&pol->pol_sapeers);
+	TAILQ_INIT(&pol->pol_sapeers);
+	RB_INIT(&pol->pol_flows);
 
 	return (pol);
 }
@@ -161,10 +175,13 @@ config_free_policy(struct iked *env, struct iked_policy *pol)
 
 	TAILQ_REMOVE(&env->sc_policies, pol, pol_entry);
 
-	RB_FOREACH(sa, iked_sapeers, &pol->pol_sapeers) {
-		/* Remove from the policy tree, but keep for existing SAs */
+	TAILQ_FOREACH(sa, &pol->pol_sapeers, sa_peer_entry) {
+		/* Remove from the policy list, but keep for existing SAs */
 		if (sa->sa_policy == pol)
 			policy_ref(env, pol);
+		else
+			log_warnx("%s: ERROR: sa_policy %p != pol %p",
+			    __func__, sa->sa_policy, pol);
 	}
 
 	if (pol->pol_refcnt)
@@ -321,8 +338,8 @@ config_add_transform(struct iked_proposal *prop, u_int type,
 		}
 	}
 
-	if ((xform = realloc(prop->prop_xforms,
-	    (prop->prop_nxforms + 1) * sizeof(*xform))) == NULL) {
+	if ((xform = reallocarray(prop->prop_xforms,
+	    prop->prop_nxforms + 1, sizeof(*xform))) == NULL) {
 		return (NULL);
 	}
 
@@ -341,7 +358,8 @@ config_add_transform(struct iked_proposal *prop, u_int type,
 }
 
 struct iked_transform *
-config_findtransform(struct iked_proposals *props, u_int8_t type)
+config_findtransform(struct iked_proposals *props, u_int8_t type,
+    u_int proto)
 {
 	struct iked_proposal	*prop;
 	struct iked_transform	*xform;
@@ -349,6 +367,9 @@ config_findtransform(struct iked_proposals *props, u_int8_t type)
 
 	/* Search of the first transform with the desired type */
 	TAILQ_FOREACH(prop, props, prop_entry) {
+		/* Find any proposal or only selected SA proto */
+		if (proto != 0 && prop->prop_protoid != proto)
+			continue;
 		for (i = 0; i < prop->prop_nxforms; i++) {
 			xform = prop->prop_xforms + i;
 			if (xform->xform_type == type)
@@ -393,8 +414,8 @@ config_setcoupled(struct iked *env, u_int couple)
 	u_int	 type;
 
 	type = couple ? IMSG_CTL_COUPLE : IMSG_CTL_DECOUPLE;
-	proc_compose_imsg(env, PROC_IKEV1, type, -1, NULL, 0);
-	proc_compose_imsg(env, PROC_IKEV2, type, -1, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, PROC_IKEV1, -1, type, -1, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, PROC_IKEV2, -1, type, -1, NULL, 0);
 
 	return (0);
 }
@@ -412,8 +433,8 @@ config_setmode(struct iked *env, u_int passive)
 	u_int	 type;
 
 	type = passive ? IMSG_CTL_PASSIVE : IMSG_CTL_ACTIVE;
-	proc_compose_imsg(env, PROC_IKEV1, type, -1, NULL, 0);
-	proc_compose_imsg(env, PROC_IKEV2, type, -1, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, PROC_IKEV1, -1, type, -1, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, PROC_IKEV2, -1, type, -1, NULL, 0);
 
 	return (0);
 }
@@ -439,7 +460,8 @@ config_getmode(struct iked *env, u_int type)
 int
 config_setreset(struct iked *env, u_int mode, enum privsep_procid id)
 {
-	proc_compose_imsg(env, id, IMSG_CTL_RESET, -1, &mode, sizeof(mode));
+	proc_compose_imsg(&env->sc_ps, id, -1,
+	    IMSG_CTL_RESET, -1, &mode, sizeof(mode));
 	return (0);
 }
 
@@ -468,6 +490,7 @@ config_getreset(struct iked *env, struct imsg *imsg)
 		for (sa = RB_MIN(iked_sas, &env->sc_sas);
 		    sa != NULL; sa = nextsa) {
 			nextsa = RB_NEXT(iked_sas, &env->sc_sas, sa);
+			RB_REMOVE(iked_sas, &env->sc_sas, sa);
 			config_free_sa(env, sa);
 		}
 	}
@@ -493,8 +516,8 @@ config_setsocket(struct iked *env, struct sockaddr_storage *ss,
 
 	if ((s = udp_bind((struct sockaddr *)ss, port)) == -1)
 		return (-1);
-	proc_compose_imsg(env, id, IMSG_UDP_SOCKET, s,
-	    ss, sizeof(*ss));
+	proc_compose_imsg(&env->sc_ps, id, -1,
+	    IMSG_UDP_SOCKET, s, ss, sizeof(*ss));
 	return (0);
 }
 
@@ -531,7 +554,8 @@ config_getsocket(struct iked *env, struct imsg *imsg,
 	if (*sptr == NULL)
 		*sptr = sock;
 	if (*nptr == NULL &&
-	    socket_getport(&sock->sock_addr) == IKED_NATT_PORT)
+	    socket_getport((struct sockaddr *)&sock->sock_addr) ==
+	    IKED_NATT_PORT)
 		*nptr = sock;
 
 	event_set(&sock->sock_ev, sock->sock_fd,
@@ -548,7 +572,8 @@ config_setpfkey(struct iked *env, enum privsep_procid id)
 
 	if ((s = pfkey_socket()) == -1)
 		return (-1);
-	proc_compose_imsg(env, id, IMSG_PFKEY_SOCKET, s, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, id, -1,
+	    IMSG_PFKEY_SOCKET, s, NULL, 0);
 	return (0);
 }
 
@@ -568,7 +593,8 @@ config_setuser(struct iked *env, struct iked_user *usr, enum privsep_procid id)
 		return (0);
 	}
 
-	proc_compose_imsg(env, id, IMSG_CFG_USER, -1, usr, sizeof(*usr));
+	proc_compose_imsg(&env->sc_ps, id, -1,
+	    IMSG_CFG_USER, -1, usr, sizeof(*usr));
 	return (0);
 }
 
@@ -638,8 +664,8 @@ config_setpolicy(struct iked *env, struct iked_policy *pol,
 		return (0);
 	}
 
-	if (proc_composev_imsg(env, id, IMSG_CFG_POLICY, -1,
-	    iov, iovcnt) == -1)
+	if (proc_composev_imsg(&env->sc_ps, id, -1,
+	    IMSG_CFG_POLICY, -1, iov, iovcnt) == -1)
 		return (-1);
 
 	return (0);
@@ -666,6 +692,7 @@ config_getpolicy(struct iked *env, struct imsg *imsg)
 	offset += sizeof(*pol);
 
 	TAILQ_INIT(&pol->pol_proposals);
+	TAILQ_INIT(&pol->pol_sapeers);
 	RB_INIT(&pol->pol_flows);
 
 	for (i = 0; i < pol->pol_nproposals; i++) {
@@ -694,7 +721,8 @@ config_getpolicy(struct iked *env, struct imsg *imsg)
 		memcpy(flow, buf + offset, sizeof(*flow));
 		offset += sizeof(*flow);
 
-		RB_INSERT(iked_flows, &pol->pol_flows, flow);
+		if (RB_INSERT(iked_flows, &pol->pol_flows, flow))
+			free(flow);
 	}
 
 	TAILQ_INSERT_TAIL(&env->sc_policies, pol, pol_entry);
@@ -717,7 +745,8 @@ config_setcompile(struct iked *env, enum privsep_procid id)
 	if (env->sc_opts & IKED_OPT_NOACTION)
 		return (0);
 
-	proc_compose_imsg(env, id, IMSG_COMPILE, -1, NULL, 0);
+	proc_compose_imsg(&env->sc_ps, id, -1,
+	    IMSG_COMPILE, -1, NULL, 0);
 	return (0);
 }
 
@@ -731,5 +760,31 @@ config_getcompile(struct iked *env, struct imsg *imsg)
 	policy_calc_skip_steps(&env->sc_policies);
 
 	log_debug("%s: compilation done", __func__);
+	return (0);
+}
+
+int
+config_setocsp(struct iked *env)
+{
+	if (env->sc_opts & IKED_OPT_NOACTION)
+		return (0);
+	proc_compose_imsg(&env->sc_ps, PROC_CERT, -1,
+	    IMSG_OCSP_URL, -1, env->sc_ocsp_url,
+	    env->sc_ocsp_url ? strlen(env->sc_ocsp_url) : 0);
+
+	return (0);
+}
+
+int
+config_getocsp(struct iked *env, struct imsg *imsg)
+{
+	if (env->sc_ocsp_url)
+		free(env->sc_ocsp_url);
+	if (IMSG_DATA_SIZE(imsg) > 0)
+		env->sc_ocsp_url = get_string(imsg->data, IMSG_DATA_SIZE(imsg));
+	else
+		env->sc_ocsp_url = NULL;
+	log_debug("%s: ocsp_url %s", __func__,
+	    env->sc_ocsp_url ? env->sc_ocsp_url : "none");
 	return (0);
 }
