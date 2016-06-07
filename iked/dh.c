@@ -25,6 +25,7 @@
 #include <openssl/ecdh.h>
 #include <openssl/bn.h>
 
+#include "defines.h"
 #include "dh.h"
 
 int	dh_init(struct group *);
@@ -298,10 +299,18 @@ struct group_id ike_groups[] = {
 	},
 	{ GROUP_ECP, 25, 192, NULL, NULL, NID_X9_62_prime192v1 },
 	{ GROUP_ECP, 26, 224, NULL, NULL, NID_secp224r1 },
+#ifdef NID_brainpoolP224r1
 	{ GROUP_ECP, 27, 224, NULL, NULL, NID_brainpoolP224r1 },
+#endif
+#ifdef NID_brainpoolP256r1
 	{ GROUP_ECP, 28, 256, NULL, NULL, NID_brainpoolP256r1 },
+#endif
+#ifdef NID_brainpoolP384r1
 	{ GROUP_ECP, 29, 384, NULL, NULL, NID_brainpoolP384r1 },
+#endif
+#ifdef NID_brainpoolP512r1
 	{ GROUP_ECP, 30, 512, NULL, NULL, NID_brainpoolP512r1 },
+#endif
 
 	/* "Private use" extensions */
 	{ GROUP_CURVE25519, 1034, CURVE25519_SIZE * 8 }

@@ -51,7 +51,6 @@
 
 #include "sys-queue.h"
 #include "sys-tree.h"
-#include "vis.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -92,19 +91,6 @@
 # define SET_STORAGE_LEN(X, Y) (void) 0
 #endif
 
-
-#ifndef HAVE_CLOSEFROM
-void closefrom(int);
-#endif
-
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t size);
-#endif
-
-#ifndef HAVE_STRLCAT
-size_t strlcat(char *dst, const char *src, size_t size);
-#endif
-
 #ifndef HAVE_STRMODE
 void strmode(int mode, char *p);
 #endif
@@ -117,11 +103,6 @@ char *dirname(const char *path);
 char *strsep(char **stringp, const char *delim);
 #endif
 
-#ifndef HAVE_SETPROCTITLE
-void setproctitle(const char *fmt, ...);
-void compat_init_setproctitle(int argc, char *argv[]);
-#endif
-
 #ifndef HAVE_SETRESGID
 int setresgid(uid_t rgid, uid_t egid, uid_t sgid);
 #endif
@@ -130,34 +111,9 @@ int setresgid(uid_t rgid, uid_t egid, uid_t sgid);
 int setresuid(uid_t ruid, uid_t euid, uid_t suid);
 #endif
 
-#if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
-int BSDgetopt(int argc, char * const *argv, const char *opts);
-char	*BSDoptarg;		/* argument associated with option */
-int	BSDoptind;		/* index into parent argv vector */
-#endif
-
 #ifndef HAVE_GETPEEREID
 int getpeereid(int , uid_t *, gid_t *);
 #endif 
-
-#ifndef HAVE_ARC4RANDOM
-unsigned int arc4random(void);
-void arc4random_stir(void);
-#endif /* !HAVE_ARC4RANDOM */
-
-#ifndef HAVE_ARC4RANDOM_BUF
-void arc4random_buf(void *, size_t);
-#endif
-
-#ifndef HAVE_ARC4RANDOM_UNIFORM
-u_int32_t arc4random_uniform(u_int32_t);
-#endif
-
-#ifndef HAVE_FGETLN
-#include <stdio.h>
-#include <string.h>
-char * fgetln(FILE *stream, size_t *len);
-#endif
 
 #ifndef HAVE_FPARSELN
 char * fparseln(FILE *fp, size_t *size, size_t *lineno, const char str[3], int flags);
@@ -177,6 +133,7 @@ int scan_scaled(char *scaled, long long *result);
 int fmt_scaled(long long number, char *result);
 #endif
 
-void seed_rng(void);
+void *reallocarray(void *, size_t , size_t);
+void explicit_bzero(void *buf, size_t len);
 
 #endif /* _OPENBSD_COMPAT_H */

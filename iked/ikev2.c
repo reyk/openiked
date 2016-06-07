@@ -23,7 +23,7 @@
 #include <sys/uio.h>
 
 #include <netinet/in.h>
-#include <netinet/ip_ipsp.h>
+#include <netipsec/ipsec.h>
 #include <arpa/inet.h>
 
 #include <stdlib.h>
@@ -2296,6 +2296,14 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 		ret = ikev2_childsa_enable(env, sa);
 	if (ret == 0) {
 		sa_state(env, sa, IKEV2_STATE_ESTABLISHED);
+		/**
+                 * Logs about the secure session are tagged with LOG_SESSION
+                 * so that it can be extracted for customer visiblity purposes
+                 */
+		log_info("LOG_SESSION: Secure session established to peer %s \
+                  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
+		  NULL, 0));
 		timer_set(env, &sa->sa_timer, ikev2_ike_sa_alive, sa);
 		timer_add(env, &sa->sa_timer, IKED_IKE_SA_ALIVE_TIMEOUT);
 		timer_set(env, &sa->sa_rekey, ikev2_ike_sa_rekey, sa);
@@ -2306,6 +2314,12 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
  done:
 	if (ret)
 		ikev2_childsa_delete(env, sa, 0, 0, NULL, 1);
+	if (ret != 0) {
+		log_info("LOG_SESSION: Authentication failure in establishing \
+                  secure session from %s to peer %s",
+                  print_host((struct sockaddr *)&sa->sa_local.addr, NULL, 0),
+                  print_host((struct sockaddr *)&sa->sa_peer.addr, NULL, 0));
+	}
 	ibuf_release(e);
 	return (ret);
 }
@@ -2847,6 +2861,12 @@ ikev2_init_create_child_sa(struct iked *env, struct iked_message *msg)
 	}
 
 	ret = ikev2_childsa_enable(env, sa);
+	if ((ret == 0) && (csa)) {
+		log_info("LOG_SESSION: Rekeying secure session key peer %s \
+                  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
+		  NULL, 0));
+	}
 
 done:
 	sa->sa_stateflags &= ~IKED_REQ_CHILDSA;
@@ -3243,8 +3263,10 @@ ikev2_ike_sa_alive(struct iked *env, void *arg)
 		if (!csa->csa_loaded ||
 		    csa->csa_saproto == IKEV2_SAPROTO_IPCOMP)
 			continue;
+#if defined(_OPENBSD_IPSEC_API_VERSION)
 		if (pfkey_sa_last_used(env->sc_pfkey, csa, &last_used) != 0)
 			continue;
+#endif
 		gettimeofday(&tv, NULL);
 		diff = (u_int32_t)(tv.tv_sec - last_used);
 		log_debug("%s: %s CHILD SA spi %s last used %llu second(s) ago",
@@ -4635,6 +4657,7 @@ ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 		    print_spi(csa->csa_spi.spi, csa->csa_spi.spi_size));
 	}
 
+#if defined (_INSTALL_IPSEC_POLICY)
 	TAILQ_FOREACH(flow, &sa->sa_flows, flow_entry) {
 		if (flow->flow_loaded)
 			continue;
@@ -4656,6 +4679,7 @@ ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 
 		log_debug("%s: loaded flow %p", __func__, flow);
 	}
+#endif
 
 	return (0);
 }
@@ -4776,7 +4800,9 @@ ikev2_acquire_sa(struct iked *env, struct iked_flow *acquire)
 		pol.pol_nflows = 1;
 
 		if ((p = policy_test(env, &pol)) == NULL) {
-			log_warnx("%s: flow wasn't found", __func__);
+			log_warnx("%s: config for peer %s wasn't found",
+				__func__, print_host((struct sockaddr *)
+				&((acquire->flow_dst).addr), NULL, 0));
 			return (0);
 		}
 

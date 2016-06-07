@@ -17,10 +17,10 @@
  */
 
 #include <sys/types.h>
-#include "openbsd-compat/sys-tree.h"
-#include "openbsd-compat/sys-queue.h"
+#include <sys/tree.h>
+#include <sys/queue.h>
 #include <limits.h>
-#include <imsg.h>
+#include "imsg.h"
 
 #include "types.h"
 #include "dh.h"
@@ -146,7 +146,7 @@ struct iked_flow {
 	u_int8_t			 flow_saproto;
 	u_int8_t			 flow_ipproto;
 	u_int8_t			 flow_type;
-
+	u_int32_t                        flow_id;
 	struct iked_addr		*flow_local;	/* outer source */
 	struct iked_addr		*flow_peer;	/* outer dest */
 	struct iked_sa			*flow_ikesa;	/* parent SA */

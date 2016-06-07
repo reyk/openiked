@@ -4,7 +4,8 @@ iked_MAPS=		eap_map.c ikev2_map.c
 iked_MAPS_IN=		eap.h ikev2.h
 iked_SOURCES=		ca.c chap_ms.c config.c control.c crypto.c dh.c \
 			eap.c iked.c ikev1.c ikev2.c ikev2_msg.c ikev2_pld.c \
-			log.c policy.c proc.c timer.c util.c imsg_util.c \
+			log.c ocsp.c policy.c proc.c \
+			smult_curve25519_ref.c timer.c util.c imsg_util.c \
 			parse.y $(iked_MAPS)
 iked_CFLAGS=
 

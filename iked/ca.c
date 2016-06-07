@@ -16,8 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
@@ -73,7 +72,6 @@ int	 ca_dispatch_ikev2(int, struct privsep_proc *, struct imsg *);
 
 static struct privsep_proc procs[] = {
 	{ "parent",	PROC_PARENT,	ca_dispatch_parent },
-	{ "ikev1",	PROC_IKEV1,	ca_dispatch_ikev1 },
 	{ "ikev2",	PROC_IKEV2,	ca_dispatch_ikev2 }
 };
 

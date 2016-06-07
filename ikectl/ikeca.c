@@ -189,7 +189,7 @@ int
 ca_sign(struct ca *ca, char *keyname, int type, char *envargs)
 {
 	char		cmd[PATH_MAX * 2];
-	char		hostname[HOST_NAME_MAX+1];
+	char		hostname[MAXHOSTNAMELEN];
 	char		name[128];
 
 	strlcpy(name, keyname, sizeof(name));
@@ -473,9 +473,7 @@ fcopy(char *src, char *dst, mode_t mode)
 		err(1, "open %s", src);
 
 	if ((ofd = open(dst, O_WRONLY|O_CREAT|O_TRUNC, mode)) == -1) {
-		int saved_errno = errno;
-		close(ifd);
-		errc(1, saved_errno, "open %s", dst);
+		err(1, "open %s", dst);
 	}
 
 	while ((r = read(ifd, buf, sizeof(buf))) > 0) {

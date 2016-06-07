@@ -44,8 +44,7 @@ log_init(int n_debug)
 	debug = n_debug;
 	verbose = n_debug;
 
-	if (!debug)
-		openlog(__progname, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	openlog(__progname, LOG_PID | LOG_NDELAY, LOG_LOCAL2);
 
 	tzset();
 }
@@ -70,19 +69,7 @@ void
 vlog(int pri, const char *fmt, va_list ap)
 {
 	char	*nfmt;
-
-	if (debug) {
-		/* best effort in out of mem situations */
-		if (asprintf(&nfmt, "%s\n", fmt) == -1) {
-			vfprintf(stderr, fmt, ap);
-			fprintf(stderr, "\n");
-		} else {
-			vfprintf(stderr, nfmt, ap);
-			free(nfmt);
-		}
-		fflush(stderr);
-	} else
-		vsyslog(pri, fmt, ap);
+	vsyslog(pri, fmt, ap);
 }
 
 
@@ -149,7 +136,7 @@ print_debug(const char *emsg, ...)
 
 	if (debug && verbose > 2) {
 		va_start(ap, emsg);
-		vfprintf(stderr, emsg, ap);
+		vlog(LOG_DEBUG, emsg, ap);
 		va_end(ap);
 	}
 }
@@ -161,7 +148,7 @@ print_verbose(const char *emsg, ...)
 
 	if (verbose) {
 		va_start(ap, emsg);
-		vfprintf(stderr, emsg, ap);
+		vlog(LOG_DEBUG, emsg, ap);
 		va_end(ap);
 	}
 }

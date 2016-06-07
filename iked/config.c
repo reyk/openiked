@@ -31,6 +31,7 @@
 #include <pwd.h>
 #include <event.h>
 
+#include "defines.h"
 #include "iked.h"
 #include "ikev2.h"
 

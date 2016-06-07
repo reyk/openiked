@@ -45,7 +45,6 @@ int	 parent_dispatch_ca(int, struct privsep_proc *, struct imsg *);
 int	 parent_configure(struct iked *);
 
 static struct privsep_proc procs[] = {
-	{ "ikev1",	PROC_IKEV1, parent_dispatch_ikev1, ikev1 },
 	{ "ikev2",	PROC_IKEV2, parent_dispatch_ikev2, ikev2 },
 	{ "ca",		PROC_CERT, parent_dispatch_ca, caproc, IKED_CA }
 };

@@ -809,10 +809,12 @@ ipcomp		: /* empty */			{ $$ = 0; }
 ikeauth		: /* empty */			{
 			$$.auth_method = IKEV2_AUTH_RSA_SIG;
 			$$.auth_length = 0;
+			$$.auth_eap = 0;
 		}
 		| RSA				{
 			$$.auth_method = IKEV2_AUTH_RSA_SIG;
 			$$.auth_length = 0;
+			$$.auth_eap = 0;
 		}
 		| PSK keyspec			{
 			memcpy(&$$, &$2, sizeof($$));
@@ -1970,12 +1972,15 @@ int
 ifa_exists(const char *ifa_name)
 {
 	struct ipsec_addr_wrap	*n;
-	struct ifgroupreq	 ifgr;
-	int			 s;
+#if defined(SIOCGIFGMEMB)
+        struct ifgroupreq        ifgr;
+        int                      s;
+#endif
 
 	if (iftab == NULL)
 		ifa_load();
 
+#if defined(SIOCGIFGMEMB)
 	/* check wether this is a group */
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
 		err(1, "ifa_exists: socket");
@@ -1986,6 +1991,7 @@ ifa_exists(const char *ifa_name)
 		return (1);
 	}
 	close(s);
+#endif
 
 	for (n = iftab; n; n = n->next) {
 		if (n->af == AF_LINK && !strncmp(n->name, ifa_name,
@@ -1999,6 +2005,7 @@ ifa_exists(const char *ifa_name)
 struct ipsec_addr_wrap *
 ifa_grouplookup(const char *ifa_name)
 {
+#if defined(SIOCGIFGMEMB)
 	struct ifg_req		*ifg;
 	struct ifgroupreq	 ifgr;
 	int			 s;
@@ -2037,7 +2044,9 @@ ifa_grouplookup(const char *ifa_name)
 	free(ifgr.ifgr_groups);
 	close(s);
 
-	return (h);
+#else
+        return (NULL);
+#endif
 }
 
 struct ipsec_addr_wrap *
