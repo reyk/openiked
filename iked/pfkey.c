@@ -1884,7 +1884,7 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
     struct sockaddr *speer;
     struct sadb_x_policy    *sa_pol;
     struct iked_flow flow;
-    struct sockaddr *ssrc, *sdst;
+    struct sockaddr *ssrc;
 #endif
     u_int8_t        *data = pm->pm_data;
     ssize_t          len = pm->pm_length;

@@ -22,6 +22,7 @@
 #include <sys/uio.h>
 #include <sys/tree.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -75,7 +76,7 @@ policy_lookup(struct iked *env, struct iked_message *msg)
 	    (s = strchr(idstr, '/')) != NULL) {
 		pol.pol_peerid.id_type = msg->msg_id.id_type;
 		pol.pol_peerid.id_length = strlen(s+1);
-		strlcpy(pol.pol_peerid.id_data, s+1,
+		strlcpy((char *)pol.pol_peerid.id_data, s+1,
 		    sizeof(pol.pol_peerid.id_data));
 		log_debug("%s: peerid '%s'", __func__, s+1);
 	}
@@ -328,8 +329,8 @@ sa_stateflags(struct iked_sa *sa, u_int flags)
 
 	log_debug("%s: 0x%02x -> 0x%02x %s (required 0x%02x %s)", __func__,
 	    sa->sa_stateflags, sa->sa_stateflags | flags,
-	    print_bits(sa->sa_stateflags | flags, IKED_REQ_BITS), require,
-	    print_bits(require, IKED_REQ_BITS));
+	    print_bits(sa->sa_stateflags | flags, (u_char *)IKED_REQ_BITS),
+	    require, print_bits(require, (u_char *)IKED_REQ_BITS));
 
 	sa->sa_stateflags |= flags;
 }
@@ -353,7 +354,7 @@ sa_stateok(struct iked_sa *sa, int state)
 		log_debug("%s: %s flags 0x%02x, require 0x%02x %s", __func__,
 		    print_map(state, ikev2_state_map),
 		    (sa->sa_stateflags & require), require,
-		    print_bits(require, IKED_REQ_BITS));
+		    print_bits(require, (u_char *)IKED_REQ_BITS));
 
 		if ((sa->sa_stateflags & require) != require)
 			return (0);	/* not ready, ignore */
