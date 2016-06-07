@@ -537,7 +537,8 @@ ca_reload(struct iked *env)
 	X509_OBJECT		*xo;
 	X509			*x509;
 	DIR			*dir;
-	int			 i, len, iovcnt = 0;
+	u_int			 len;
+	int			 i, iovcnt = 0;
 
 	/*
 	 * Load CAs
@@ -958,7 +959,8 @@ ca_x509_name_unescape(char *src, char *dst, char marker)
 void *
 ca_x509_name_parse(char *subject)
 {
-	char		*cp, *value = NULL, *type = NULL;
+	u_char		*value = NULL;
+	char		*cp, *type = NULL;
 	size_t		 maxlen;
 	X509_NAME	*name = NULL;
 
@@ -988,7 +990,7 @@ ca_x509_name_parse(char *subject)
 			goto err;
 		}
 		/* unescape value, terminated by '/' */
-		cp = ca_x509_name_unescape(cp, value, '/');
+		cp = ca_x509_name_unescape(cp, (char *)value, '/');
 		if (cp == NULL) {
 			log_warnx("%s: could not parse value", __func__);
 			goto err;

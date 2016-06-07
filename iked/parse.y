@@ -654,7 +654,7 @@ host_spec	: STRING			{
 		| STRING '/' NUMBER		{
 			char	*buf;
 
-			if (asprintf(&buf, "%s/%lld", $1, $3) == -1)
+			if (asprintf(&buf, "%s/%lld", $1, (long long)$3) == -1)
 				err(1, "host: asprintf");
 			free($1);
 			if (($$ = host(buf)) == NULL)	{
@@ -844,10 +844,10 @@ byte_spec	: NUMBER			{
 			$$ = $1;
 		}
 		| STRING			{
-			u_int64_t	 bytes = 0;
+			uintmax_t	 bytes = 0;
 			char		 unit = 0;
 
-			if (sscanf($1, "%llu%c", &bytes, &unit) != 2) {
+			if (sscanf($1, "%ju%c", &bytes, &unit) != 2) {
 				yyerror("invalid byte specification: %s", $1);
 				YYERROR;
 			}
@@ -873,10 +873,10 @@ time_spec	: NUMBER			{
 			$$ = $1;
 		}
 		| STRING			{
-			u_int64_t	 seconds = 0;
+			uintmax_t	 seconds = 0;
 			char		 unit = 0;
 
-			if (sscanf($1, "%llu%c", &seconds, &unit) != 2) {
+			if (sscanf($1, "%ju%c", &seconds, &unit) != 2) {
 				yyerror("invalid time specification: %s", $1);
 				YYERROR;
 			}
@@ -916,14 +916,14 @@ ikelifetime	: /* empty */				{
 		}
 
 keyspec		: STRING			{
-			u_int8_t	*hex;
+			char	*hex;
 
 			bzero(&$$, sizeof($$));
 
 			hex = $1;
 			if (strncmp(hex, "0x", 2) == 0) {
 				hex += 2;
-				if (parsekey(hex, strlen(hex), &$$) != 0) {
+				if (parsekey((u_char *)hex, strlen(hex), &$$)) {
 					free($1);
 					YYERROR;
 				}
@@ -933,7 +933,7 @@ keyspec		: STRING			{
 					free($1);
 					YYERROR;
 				}
-				strlcpy($$.auth_data, $1,
+				strlcpy((char *)$$.auth_data, $1,
 				    sizeof($$.auth_data));
 				$$.auth_length = strlen($1);
 			}
@@ -1234,8 +1234,8 @@ findeol(void)
 int
 yylex(void)
 {
-	u_char	 buf[8096];
-	u_char	*p, *val;
+	char	 buf[8096];
+	char	*p, *val;
 	int	 quotec, next, c;
 	int	 token;
 
@@ -1270,7 +1270,7 @@ top:
 			yyerror("macro '%s' not defined", buf);
 			return (findeol());
 		}
-		parsebuf = val;
+		parsebuf = (u_char *)val;
 		parseindex = 0;
 		goto top;
 	}
@@ -2043,7 +2043,7 @@ ifa_grouplookup(const char *ifa_name)
 	}
 	free(ifgr.ifgr_groups);
 	close(s);
-
+	return (h);
 #else
         return (NULL);
 #endif
@@ -2336,7 +2336,8 @@ print_policy(struct iked_policy *pol)
 		print_verbose(" ikelifetime %u", pol->pol_rekey);
 
 	print_verbose(" lifetime %llu bytes %llu",
-	    pol->pol_lifetime.lt_seconds, pol->pol_lifetime.lt_bytes);
+	    (unsigned long long)pol->pol_lifetime.lt_seconds,
+	    (unsigned long long)pol->pol_lifetime.lt_bytes);
 
 	if (pol->pol_auth.auth_method == IKEV2_AUTH_SHARED_KEY_MIC) {
 			print_verbose(" psk 0x");

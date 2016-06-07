@@ -426,10 +426,10 @@ print_spi(u_int64_t spi, int size)
 		snprintf(ptr, 32, "0x%08x", (u_int32_t)spi);
 		break;
 	case 8:
-		snprintf(ptr, 32, "0x%016llx", spi);
+		snprintf(ptr, 32, "0x%016llx", (unsigned long long)spi);
 		break;
 	default:
-		snprintf(ptr, 32, "%llu", spi);
+		snprintf(ptr, 32, "%llu", (unsigned long long)spi);
 		break;
 	}
 

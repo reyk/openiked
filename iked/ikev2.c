@@ -1169,8 +1169,8 @@ ikev2_policy2id(struct iked_static_id *polid, struct iked_id *id, int srcid)
 		break;
 	case IKEV2_ID_ASN1_DN:
 		/* policy has ID in string-format, convert to ASN1 */
-		if ((name = ca_x509_name_parse(polid->id_data)) == NULL ||
-		    (len = i2d_X509_NAME(name, NULL)) < 0 ||
+		name = ca_x509_name_parse((char *)polid->id_data);
+		if (name == NULL || (len = i2d_X509_NAME(name, NULL)) < 0 ||
 		    (p = ibuf_reserve(id->id_buf, len)) == NULL ||
 		    (i2d_X509_NAME(name, &p)) < 0) {
 			if (name)
@@ -3263,16 +3263,19 @@ ikev2_ike_sa_alive(struct iked *env, void *arg)
 		if (!csa->csa_loaded ||
 		    csa->csa_saproto == IKEV2_SAPROTO_IPCOMP)
 			continue;
+		gettimeofday(&tv, NULL);
 #if defined(_OPENBSD_IPSEC_API_VERSION)
 		if (pfkey_sa_last_used(env->sc_pfkey, csa, &last_used) != 0)
 			continue;
+#else
+		last_used = tv.tv_sec;	/* XXX */
 #endif
-		gettimeofday(&tv, NULL);
 		diff = (u_int32_t)(tv.tv_sec - last_used);
 		log_debug("%s: %s CHILD SA spi %s last used %llu second(s) ago",
 		    __func__,
 		    csa->csa_dir == IPSP_DIRECTION_IN ? "incoming" : "outgoing",
-		    print_spi(csa->csa_spi.spi, csa->csa_spi.spi_size), diff);
+		    print_spi(csa->csa_spi.spi, csa->csa_spi.spi_size),
+		    (unsigned long long)diff);
 		if (diff < IKED_IKE_SA_ALIVE_TIMEOUT) {
 			if (csa->csa_dir == IPSP_DIRECTION_IN) {
 				foundin = 1;
@@ -4634,7 +4637,6 @@ int
 ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 {
 	struct iked_childsa	*csa;
-	struct iked_flow	*flow, *oflow;
 
 	if (sa->sa_ipcomp && sa->sa_cpi_in && sa->sa_cpi_out &&
 	    ikev2_ipcomp_enable(env, sa) == -1)

@@ -536,7 +536,7 @@ ikev2_msg_decrypt(struct iked *env, struct iked_sa *sa,
 	hash_init(sa->sa_integr);
 	hash_update(sa->sa_integr, ibuf_data(msg),
 	    ibuf_size(msg) - integrlen);
-	hash_final(sa->sa_integr, tmp->buf, &tmplen);
+	hash_final(sa->sa_integr, tmp->buf, (size_t *)&tmplen);
 
 	if (memcmp(tmp->buf, ibuf_data(src) + integroff, integrlen) != 0) {
 		log_debug("%s: integrity check failed", __func__);
@@ -567,7 +567,7 @@ ikev2_msg_decrypt(struct iked *env, struct iked_sa *sa,
 
 	if ((outlen = ibuf_length(out)) != 0) {
 		cipher_update(sa->sa_encr, ibuf_data(src) + encroff, encrlen,
-		    ibuf_data(out), &outlen);
+		    ibuf_data(out), (size_t *)&outlen);
 
 		ptr = ibuf_seek(out, outlen - 1, 1);
 		pad = *ptr;

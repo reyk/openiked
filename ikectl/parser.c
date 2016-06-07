@@ -67,7 +67,6 @@ static const struct token t_ca_ex_pass[];
 static const struct token t_ca_modifiers[];
 static const struct token t_ca_cert[];
 static const struct token t_ca_cert_extusage[];
-static const struct token t_ca_cert_ex_peer[];
 static const struct token t_ca_cert_modifiers[];
 static const struct token t_ca_key[];
 static const struct token t_ca_key_modifiers[];

@@ -151,7 +151,7 @@ mschap_challenge_hash(u_int8_t *peer_challenge, u_int8_t *auth_challenge,
 	u_int		 mdlen;
 	u_int8_t	*name;
 
-	if ((name = strrchr(username, '\\')) == NULL)
+	if ((name = (u_char *)strrchr((char *)username, '\\')) == NULL)
 		name = username;
 	else
 		name++;
@@ -159,7 +159,7 @@ mschap_challenge_hash(u_int8_t *peer_challenge, u_int8_t *auth_challenge,
 	EVP_DigestInit(&ctx, EVP_sha1());
 	EVP_DigestUpdate(&ctx, peer_challenge, MSCHAPV2_CHALLENGE_SZ);
 	EVP_DigestUpdate(&ctx, auth_challenge, MSCHAPV2_CHALLENGE_SZ);
-	EVP_DigestUpdate(&ctx, name, strlen(name));
+	EVP_DigestUpdate(&ctx, name, strlen((char *)name));
 	EVP_DigestFinal(&ctx, md, &mdlen);
 
 	memcpy(challenge, md, MSCHAP_CHALLENGE_SZ);
@@ -341,7 +341,7 @@ mschap_radiuskey(u_int8_t *plain, const u_int8_t *crypted,
 	u_int		 i, mdlen;
 
 	EVP_DigestInit(&ctx, EVP_md5());
-	EVP_DigestUpdate(&ctx, secret, strlen(secret));
+	EVP_DigestUpdate(&ctx, (char *)secret, strlen((char *)secret));
 	EVP_DigestUpdate(&ctx, authenticator, 16);
 	EVP_DigestUpdate(&ctx, crypted, 2);
 	EVP_DigestFinal(&ctx, b, &mdlen);
@@ -351,7 +351,7 @@ mschap_radiuskey(u_int8_t *plain, const u_int8_t *crypted,
 	}
 
 	EVP_DigestInit(&ctx, EVP_md5());
-	EVP_DigestUpdate(&ctx, secret, strlen(secret));
+	EVP_DigestUpdate(&ctx, secret, strlen((char *)secret));
 	EVP_DigestUpdate(&ctx, crypted + 2, mdlen);
 	EVP_DigestFinal(&ctx, b, &mdlen);
 

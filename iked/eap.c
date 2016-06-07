@@ -235,8 +235,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 
 		msp = &msr->msr_response.resp_peer;
 		mschap_nt_response(ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
-		    pass, passlen, ntresponse);
+		    msp->msp_challenge, (u_char *)usr->usr_name,
+		    strlen(usr->usr_name), pass, passlen, ntresponse);
 
 		if (memcmp(ntresponse, msp->msp_ntresponse,
 		    sizeof(ntresponse)) != 0) {
@@ -251,8 +251,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 		bzero(&successmsg, sizeof(successmsg));
 		mschap_auth_response(pass, passlen,
 		    ntresponse, ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
-		    successmsg);
+		    msp->msp_challenge, (u_char *)usr->usr_name,
+		    strlen(usr->usr_name), successmsg);
 		if ((sa->sa_eapmsk = ibuf_new(NULL, MSCHAP_MSK_SZ)) == NULL) {
 			log_debug("%s: failed to get MSK", __func__);
 			free(pass);
