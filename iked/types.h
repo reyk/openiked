@@ -1,4 +1,4 @@
-/*	$OpenBSD: types.h,v 1.17 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: types.h,v 1.19 2015/06/11 18:49:09 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _IKED_TYPES_H
-#define _IKED_TYPES_H
+#ifndef IKED_TYPES_H
+#define IKED_TYPES_H
 
 #ifndef IKED_USER
 #define IKED_USER	"_iked"
@@ -37,6 +37,9 @@
 #define IKED_PUBKEY_DIR	"pubkeys/"
 #define IKED_PRIVKEY	IKED_CA "private/local.key"
 #define IKED_PUBKEY	"local.pub"
+
+#define IKED_OCSP_RESPCERT	  "ocsp/responder.crt"
+#define IKED_OCSP_ISSUER	  "ocsp/issuer.crt"
 
 #define IKED_OPT_VERBOSE	0x00000001
 #define IKED_OPT_NOACTION	0x00000002
@@ -101,6 +104,8 @@ enum imsg_type {
 	IMSG_CERT,
 	IMSG_CERTVALID,
 	IMSG_CERTINVALID,
+	IMSG_OCSP_FD,
+	IMSG_OCSP_URL,
 	IMSG_AUTH
 };
 
@@ -133,4 +138,4 @@ enum flushmode {
 #define nitems(_a)   (sizeof((_a)) / sizeof((_a)[0]))
 #endif
 
-#endif /* _IKED_TYPES_H */
+#endif /* IKED_TYPES_H */

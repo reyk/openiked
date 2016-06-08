@@ -1,4 +1,4 @@
-/*	$OpenBSD: eap.c,v 1.9 2013/03/21 04:30:14 deraadt Exp $	*/
+/*	$OpenBSD: eap.c,v 1.13 2015/02/06 10:39:01 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,23 +16,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
-#include "openbsd-compat/sys-queue.h"
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
 
 #include <netinet/in.h>
-#if defined(__OpenBSD__)
-#include <netinet/ip_ipsp.h>
-#endif
 #include <arpa/inet.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <getopt.h>
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
@@ -79,11 +74,11 @@ eap_identity_response(struct eap_message *eap)
 	ptr += sizeof(*eap);
 
 	if (len == 0 || (str = get_string(ptr, len)) == NULL) {
-		log_info("%s: invalid identity response, length %d",
+		log_info("%s: invalid identity response, length %zu",
 		    __func__, len);
 		return (NULL);
 	}
-	log_debug("%s: identity '%s' length %d", __func__, str, len);
+	log_debug("%s: identity '%s' length %zd", __func__, str, len);
 	return (str);
 }
 
@@ -240,8 +235,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 
 		msp = &msr->msr_response.resp_peer;
 		mschap_nt_response(ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
-		    pass, passlen, ntresponse);
+		    msp->msp_challenge, (u_char *)usr->usr_name,
+		    strlen(usr->usr_name), pass, passlen, ntresponse);
 
 		if (memcmp(ntresponse, msp->msp_ntresponse,
 		    sizeof(ntresponse)) != 0) {
@@ -256,8 +251,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 		bzero(&successmsg, sizeof(successmsg));
 		mschap_auth_response(pass, passlen,
 		    ntresponse, ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
-		    successmsg);
+		    msp->msp_challenge, (u_char *)usr->usr_name,
+		    strlen(usr->usr_name), successmsg);
 		if ((sa->sa_eapmsk = ibuf_new(NULL, MSCHAP_MSK_SZ)) == NULL) {
 			log_debug("%s: failed to get MSK", __func__);
 			free(pass);
@@ -399,7 +394,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 				return (-1);
 			}
 			log_info("%s: %s %s id %d "
-			    "length %d valuesize %d name '%s' length %d",
+			    "length %d valuesize %d name '%s' length %zu",
 			    __func__,
 			    print_map(eap->eap_type, eap_type_map),
 			    print_map(ms->ms_opcode, eap_msopcode_map),
@@ -420,7 +415,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 				return (-1);
 			}
 			log_info("%s: %s %s id %d "
-			    "length %d valuesize %d name '%s' name-length %d",
+			    "length %d valuesize %d name '%s' name-length %zu",
 			    __func__,
 			    print_map(eap->eap_type, eap_type_map),
 			    print_map(ms->ms_opcode, eap_msopcode_map),
@@ -442,7 +437,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 					return (-1);
 				}
 				log_info("%s: %s %s request id %d "
-				    "length %d message '%s' message-len %d",
+				    "length %d message '%s' message-len %zu",
 				    __func__,
 				    print_map(eap->eap_type, eap_type_map),
 				    print_map(ms->ms_opcode, eap_msopcode_map),

@@ -1,4 +1,4 @@
-/*	$OpenBSD: parser.c,v 1.12 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: parser.c,v 1.13 2015/01/16 06:40:17 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -18,11 +18,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "openbsd-compat/sys-queue.h"
-#include "openbsd-compat/sys-tree.h"
+#include <sys/queue.h>
+#include <sys/tree.h>
 
 #include <err.h>
 #include <errno.h>
@@ -68,7 +67,6 @@ static const struct token t_ca_ex_pass[];
 static const struct token t_ca_modifiers[];
 static const struct token t_ca_cert[];
 static const struct token t_ca_cert_extusage[];
-static const struct token t_ca_cert_ex_peer[];
 static const struct token t_ca_cert_modifiers[];
 static const struct token t_ca_key[];
 static const struct token t_ca_key_modifiers[];
