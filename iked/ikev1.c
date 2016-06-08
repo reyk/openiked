@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikev1.c,v 1.18 2015/08/21 11:59:27 reyk Exp $	*/
+/*	$OpenBSD: ikev1.c,v 1.13 2013/03/21 04:30:14 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -22,7 +22,8 @@
  * XXX or remove this file and ikev1 from the iked tree.
  */
 
-#include <sys/queue.h>
+#include <sys/param.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
@@ -31,6 +32,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <getopt.h>
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
@@ -90,7 +92,7 @@ ikev1_dispatch_ikev2(int fd, struct privsep_proc *p, struct imsg *imsg)
 {
 	struct iked		*env = p->p_env;
 	struct iked_message	 msg;
-	uint8_t			*buf;
+	u_int8_t		*buf;
 	ssize_t			 len;
 
 	switch (imsg->hdr.type) {
@@ -100,13 +102,13 @@ ikev1_dispatch_ikev2(int fd, struct privsep_proc *p, struct imsg *imsg)
 		memcpy(&msg, imsg->data, sizeof(msg));
 
 		len = IMSG_DATA_SIZE(imsg) - sizeof(msg);
-		buf = (uint8_t *)imsg->data + sizeof(msg);
+		buf = (u_int8_t *)imsg->data + sizeof(msg);
 		if (len <= 0 || (msg.msg_data = ibuf_new(buf, len)) == NULL) {
 			log_debug("%s: short message", __func__);
 			return (0);
 		}
 
-		log_debug("%s: message length %zd", __func__, len);
+		log_debug("%s: message length %d", __func__, len);
 
 		ikev1_recv(env, &msg);
 		ikev2_msg_cleanup(env, &msg);
@@ -131,7 +133,7 @@ ikev1_msg_cb(int fd, short event, void *arg)
 	struct iked		*env = sock->sock_env;
 	struct iked_message	 msg;
 	struct ike_header	 hdr;
-	uint8_t			 buf[IKED_MSGBUF_MAX];
+	u_int8_t		 buf[IKED_MSGBUF_MAX];
 	size_t			 len;
 	struct iovec		 iov[2];
 
@@ -156,8 +158,8 @@ ikev1_msg_cb(int fd, short event, void *arg)
 		iov[1].iov_base = buf;
 		iov[1].iov_len = len;
 
-		proc_composev_imsg(&env->sc_ps, PROC_IKEV2, -1,
-		    IMSG_IKE_MESSAGE, -1, iov, 2);
+		proc_composev_imsg(env, PROC_IKEV2, IMSG_IKE_MESSAGE, -1,
+		    iov, 2);
 		goto done;
 	}
 

@@ -5,7 +5,8 @@ OpenIKED is free software under OpenBSD's ISC-style license.
 
 * Most of the code has been written by Reyk Floeter <reyk@openbsd.org>
 * The ikectl CA code has been written by Jonathan Gray <jsg@openbsd.org>
-* Much work by Markus Friedl <markus@openbsd.org> and Hans-Joerg Hoexer.
+* The `openbsd-compat` and autoconf parts of the portable version are
+  based on work by Damien Miller <djm@mindrot.org> for OpenSSH.
 * Please refer to the individual source files for other copyright holders!
 
 > Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>

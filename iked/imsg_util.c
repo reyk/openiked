@@ -1,4 +1,4 @@
-/*	$OpenBSD: imsg_util.c,v 1.10 2015/08/21 11:59:27 reyk Exp $	*/
+/*	$OpenBSD: imsg_util.c,v 1.7 2013/03/21 04:30:14 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,11 +16,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#include <net/if.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <netdb.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -45,7 +52,7 @@ ibuf_cat(struct ibuf *dst, struct ibuf *src)
 void
 ibuf_zero(struct ibuf *buf)
 {
-	explicit_bzero(buf->buf, buf->wpos);
+	memset(buf->buf, 0, buf->wpos);
 }
 
 struct ibuf *
@@ -103,10 +110,8 @@ ibuf_release(struct ibuf *buf)
 {
 	if (buf == NULL)
 		return;
-	if (buf->buf != NULL) {
-		ibuf_zero(buf);
+	if (buf->buf != NULL)
 		free(buf->buf);
-	}
 	free(buf);
 }
 
@@ -118,7 +123,7 @@ ibuf_length(struct ibuf *buf)
 	return (ibuf_size(buf));
 }
 
-uint8_t *
+u_int8_t *
 ibuf_data(struct ibuf *buf)
 {
 	return (ibuf_seek(buf, 0, 0));

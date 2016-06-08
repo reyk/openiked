@@ -1,6 +1,6 @@
-.\" $OpenBSD: iked.conf.5,v 1.39 2015/07/14 13:06:37 jmc Exp $
+.\" $OpenBSD: iked.conf.5,v 1.23 2013/03/05 19:16:01 sobrado Exp $
 .\"
-.\" Copyright (c) 2010 - 2014 Reyk Floeter <reyk@openbsd.org>
+.\" Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
 .\" Copyright (c) 2004 Mathieu Sauve-Frankel  All rights reserved.
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 14 2015 $
+.Dd $Mdocdate: March 5 2013 $
 .Dt IKED.CONF 5
 .Os
 .Sh NAME
@@ -136,13 +136,6 @@ This is the default.
 .It Ic set decouple
 Don't load the negotiated SAs and flows from the kernel.
 This mode is only useful for testing and debugging.
-.It Ic set ocsp Ar URL
-Enable OCSP and set the URL of the OCSP responder.
-Please note that the matching responder and issuer certificates
-have to be placed in
-.Pa /etc/iked/ocsp/responder.crt
-and
-.Pa /etc/iked/ocsp/issuer.crt .
 .It Ic user Ar name Ar password
 .Xr iked 8
 supports user-based authentication by tunneling the Extensible
@@ -246,10 +239,6 @@ is specified, negotiation will be started at once.
 If omitted,
 .Ar passive
 mode will be used.
-.It Ic ipcomp
-Enable optional support for
-.Xr ipcomp 4 ,
-the IP Payload Compression protocol.
 .It Op Ar encap
 .Ar encap
 specifies the encapsulation protocol to be used.
@@ -397,7 +386,7 @@ If omitted,
 will use the default proposals for the ESP or AH protocol.
 The
 .Ic group
-option will only be used to enable Perfect Forward Secrecy (PFS)
+option will only be used to enable Perfect Forwarding Security (PFS)
 for additional Child SAs exchanges that are not part of the initial
 key exchange.
 .It Ic srcid Ar string Ic dstid Ar string
@@ -435,14 +424,6 @@ is similar to
 .Ic srcid ,
 but instead specifies the ID to be used
 by the remote peer.
-.It Ic ikelifetime Ar time
-The optional
-.Ic ikelifetime
-parameter defines the IKE SA expiration timeout by the
-.Ar time
-SA was created.
-A zero value disables active IKE SA rekeying.
-This is the default.
 .It Ic lifetime Ar time Op Ic bytes Ar bytes
 The optional
 .Ic lifetime
@@ -491,33 +472,6 @@ or hex value (starting with 0x) for authentication.
 .It Ic rsa
 Use RSA public key authentication.
 This is the default mode if no option is specified.
-.El
-.It Ic config Ar option address
-Send one or more optional configuration payloads (CP) to the peer.
-The configuration
-.Ar option
-can be one of the following with the expected address format:
-.Pp
-.Bl -tag -width Ds -compact -offset indent
-.It Ic address Ar address
-Assign a static address on the internal network.
-.It Ic address Ar address/prefix
-Assign a dynamic address on the internal network.
-The address will be assigned from an address pool with the size specified by
-.Ar prefix .
-.It Ic netmask Ar netmask
-The IPv4 netmask of the internal network.
-.It Ic name-server Ar address
-The DNS server address within the internal network.
-.It Ic netbios-server Ar address
-The NetBIOS name server (WINS) within the internal network.
-This option is provided for compatibility with legacy clients.
-.It Ic dhcp-server Ar address
-The address of an internal DHCP server for further configuration.
-.It Ic protected-subnet Ar address/prefix
-The address of the protected subnet within the internal network.
-.It Ic access-server Ar address
-The address of an internal remote access server.
 .El
 .It Ic tag Ar string
 Add a
@@ -599,7 +553,7 @@ Interface for IKE traffic and encapsulated IPsec traffic.
 IKE traffic on the external interface.
 .It proto udp port 4500
 IKE NAT-Traversal traffic on the external interface.
-.It proto ah | esp
+.It proto ah \*(Ba esp
 Encapsulated IPsec traffic
 on the external interface.
 .It enc0
@@ -670,16 +624,17 @@ The following
 fragment uses queues for all IPsec traffic with special
 handling for developers and employees:
 .Bd -literal -offset indent
-queue std on ix0 bandwidth 100M
-queue   deflt parent std bandwidth 10M default
-queue   developers parent std bandwidth 75M
-queue   employees parent std bandwidth 5M
-queue   ipsec parent std bandwidth 10M
+altq on ix0 cbq bandwidth 1000Mb \e
+	queue { deflt, developers, employees, ipsec }
+    queue deflt bandwidth 10% priority 0 cbq(default ecn)
+    queue developers bandwidth 75% priority 7 cbq(borrow red)
+    queue employees bandwidth 5% cbq(red)
+    queue ipsec bandwidth 10% cbq(red)
 
-pass out on ix0 proto esp set queue ipsec
+pass out on ix0 proto esp queue ipsec
 
-pass out on ix0 tagged ipsec-developers.example.com set queue developers
-pass out on ix0 tagged ipsec-employees.example.com set queue employees
+pass out on ix0 tagged ipsec-developers.example.com queue developers
+pass out on ix0 tagged ipsec-employees.example.com queue employees
 .Ed
 .Pp
 The following example assigns the tags in the
@@ -718,7 +673,7 @@ a relevant NAT rule is required in
 For the example above,
 this would be:
 .Bd -literal -offset indent
-match out on enc0 from 192.168.1.0/24 to 192.168.2.0/24 nat-to 10.10.10.1
+match on enc0 from 192.168.1.0/24 to 192.168.2.0/24 nat-to 10.10.10.1
 .Ed
 .Pp
 From the peer's point of view,
@@ -765,21 +720,16 @@ keyword:
 .It Li aes-128-gcm Ta "160 bits" Ta "[ESP only]"
 .It Li aes-192-gcm Ta "224 bits" Ta "[ESP only]"
 .It Li aes-256-gcm Ta "288 bits" Ta "[ESP only]"
-.It Li blowfish Ta "160 bits" Ta "[ESP only]"
-.It Li cast Ta "128 bits" Ta "[ESP only]"
-.El
-.Pp
-The following cipher types provide only authentication,
-not encryption:
-.Bl -column "aes-128-gmac" "Key Length" "[ESP only]" -offset indent
 .It Li aes-128-gmac Ta "160 bits" Ta "[ESP only]"
 .It Li aes-192-gmac Ta "224 bits" Ta "[ESP only]"
 .It Li aes-256-gmac Ta "288 bits" Ta "[ESP only]"
+.It Li blowfish Ta "160 bits" Ta "[ESP only]"
+.It Li cast Ta "128 bits" Ta "[ESP only]"
 .It Li null Ta "" Ta "[ESP only]"
 .El
 .Pp
-Use of DES as an encryption algorithm is considered to be insecure
-since brute force attacks are practical due its short key length.
+Use of DES as an encryption algorithm is not recommended (except for
+backwards compatibility) due to the short key length.
 .Pp
 DES requires 8 bytes to form a 56-bit key and 3DES requires 24 bytes
 to form its 168-bit key.
@@ -816,22 +766,17 @@ keyword:
 .It Li modp2048-256 Ta grp24 Ta 2048 Ta "MODP, 256 bit Prime Order Subgroup"
 .It Li ecp192 Ta grp25 Ta 192 Ta "ECP"
 .It Li ecp224 Ta grp26 Ta 224 Ta "ECP"
-.It Li brainpool224 Ta grp27 Ta 224 Ta "ECP, brainpoolP224r1"
-.It Li brainpool256 Ta grp28 Ta 256 Ta "ECP, brainpoolP256r1"
-.It Li brainpool384 Ta grp29 Ta 384 Ta "ECP, brainpoolP384r1"
-.It Li brainpool512 Ta grp30 Ta 512 Ta "ECP, brainpoolP512r1"
-.It Li curve25519 Ta - Ta 256 Ta "Curve25519"
 .El
 .Pp
 The currently supported group types are either
 MODP (exponentiation groups modulo a prime),
 EC2N (elliptic curve groups over GF[2^N]),
-ECP (elliptic curve groups modulo a prime),
-or the non-standard Curve25519.
+or
+ECP (elliptic curve groups modulo a prime).
 Please note that the EC2N groups are considered as insecure and only
 provided for backwards compatibility.
 .Sh EXAMPLES
-The first example is intended for a server with clients connecting to
+The first example is intended for clients connecting to
 .Xr iked 8
 as an IPsec gateway, or IKEv2 responder, using mutual public key
 authentication and additional challenge-based EAP-MSCHAPv2 password
@@ -901,4 +846,4 @@ file format first appeared in
 The
 .Xr iked 8
 program was written by
-.An Reyk Floeter Aq Mt reyk@openbsd.org .
+.An Reyk Floeter Aq reyk@openbsd.org .

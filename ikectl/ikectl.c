@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikectl.c,v 1.20 2015/08/19 13:30:54 reyk Exp $	*/
+/*	$OpenBSD: ikectl.c,v 1.16 2013/01/08 10:38:19 reyk Exp $	*/
 
 /*
  * Copyright (c) 2007-2013 Reyk Floeter <reyk@openbsd.org>
@@ -19,11 +19,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/queue.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/un.h>
-#include <sys/tree.h>
+#include "openbsd-compat/sys-tree.h"
 
 #include <err.h>
 #include <errno.h>
@@ -44,7 +45,7 @@ struct imsgname {
 	void (*func)(struct imsg *);
 };
 
-struct imsgname *monitor_lookup(uint8_t);
+struct imsgname *monitor_lookup(u_int8_t);
 void		 monitor_id(struct imsg *);
 int		 monitor(struct imsg *);
 
@@ -312,7 +313,7 @@ main(int argc, char *argv[])
 	}
 
 	while (ibuf->w.queued)
-		if (msgbuf_write(&ibuf->w) <= 0 && errno != EAGAIN)
+		if (msgbuf_write(&ibuf->w) < 0)
 			err(1, "write error");
 
 	while (!done) {
@@ -343,7 +344,7 @@ main(int argc, char *argv[])
 }
 
 struct imsgname *
-monitor_lookup(uint8_t type)
+monitor_lookup(u_int8_t type)
 {
 	int i;
 
@@ -365,7 +366,7 @@ monitor(struct imsg *imsg)
 	imn = monitor_lookup(imsg->hdr.type);
 	printf("%s: imsg type %u len %u peerid %u pid %d\n", imn->name,
 	    imsg->hdr.type, imsg->hdr.len, imsg->hdr.peerid, imsg->hdr.pid);
-	printf("\ttimestamp: %lld, %s", (long long)now, ctime(&now));
+	printf("\ttimestamp: %u, %s", now, ctime(&now));
 	if (imn->type == -1)
 		done = 1;
 	if (imn->func != NULL)

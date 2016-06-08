@@ -1,33 +1,31 @@
-/Makefile/1.12/Thu Oct  8 08:37:37 2015//
-/ca.c/1.37/Thu Oct  8 08:37:38 2015//
-/chap_ms.c/1.9/Thu Oct  8 08:37:38 2015//
-/chap_ms.h/1.6/Thu Oct  8 08:37:38 2015//
-/config.c/1.37/Thu Oct  8 08:37:38 2015//
-/control.c/1.16/Thu Oct  8 08:37:38 2015//
-/crypto.c/1.18/Thu Oct  8 08:37:38 2015//
-/dh.c/1.17/Thu Oct  8 08:37:38 2015//
-/dh.h/1.9/Thu Oct  8 08:37:38 2015//
-/eap.c/1.14/Thu Oct  8 08:37:38 2015//
-/eap.h/1.5/Thu Oct  8 08:37:38 2015//
-/genmap.sh/1.7/Thu Oct  8 08:37:38 2015//
-/iked.8/1.19/Thu Oct  8 08:37:38 2015//
-/iked.c/1.25/Thu Oct  8 08:37:38 2015//
-/iked.conf.5/1.39/Thu Oct  8 08:37:39 2015//
-/iked.h/1.89/Thu Oct  8 08:37:39 2015//
-/ikev1.c/1.18/Thu Oct  8 08:37:39 2015//
-/ikev2.c/1.125/Thu Oct  8 08:37:39 2015//
-/ikev2.h/1.22/Thu Oct  8 08:37:39 2015//
-/ikev2_msg.c/1.43/Thu Oct  8 08:37:39 2015//
-/ikev2_pld.c/1.54/Thu Oct  8 08:37:39 2015//
-/imsg_util.c/1.10/Thu Oct  8 08:37:39 2015//
-/log.c/1.4/Thu Oct  8 08:37:39 2015//
-/ocsp.c/1.6/Fri Aug 21 11:59:27 2015//
-/parse.y/1.51/Thu Oct  8 08:37:40 2015//
-/pfkey.c/1.45/Thu Oct  8 08:37:40 2015//
-/policy.c/1.40/Thu Oct  8 08:37:40 2015//
-/proc.c/1.23/Thu Oct  8 08:37:40 2015//
-/smult_curve25519_ref.c/1.1/Wed Aug 27 10:28:57 2014//
-/timer.c/1.12/Thu Oct  8 08:37:40 2015//
-/types.h/1.21/Thu Oct  8 08:37:40 2015//
-/util.c/1.27/Thu Oct  8 08:37:40 2015//
+/Makefile/1.8/Result of merge+Fri Jan 11 08:22:53 2013//
+/chap_ms.c/1.6/Result of merge//
+/crypto.c/1.9/Result of merge//
+/iked.8/1.13/Result of merge//
+/iked.h/1.56/Result of merge//
+/log.c/1.3/Result of merge//
+/policy.c/1.23/Result of merge+Fri Jan 11 08:23:08 2013//
+/timer.c/1.10/Result of merge//
+/util.c/1.18/Result of merge//
+/ca.c/1.22/Result of merge+Tue Apr  2 09:13:18 2013//
+/chap_ms.h/1.3/Mon Jan 14 14:11:49 2013//
+/config.c/1.20/Result of merge+Tue Apr  2 09:13:19 2013//
+/control.c/1.12/Result of merge//
+/dh.c/1.10/Mon Jan 14 14:11:49 2013//
+/dh.h/1.5/Mon Jan 14 14:11:49 2013//
+/eap.c/1.9/Result of merge+Tue Apr  2 09:13:20 2013//
+/eap.h/1.3/Mon Jan 14 14:11:49 2013//
+/genmap.sh/1.6/Mon Jan 14 14:11:49 2013//
+/iked.c/1.17/Result of merge+Tue Apr  2 09:13:21 2013//
+/iked.conf.5/1.23/Tue Apr  2 09:13:22 2013//
+/ikev1.c/1.13/Result of merge+Tue Apr  2 09:13:23 2013//
+/ikev2.c/1.82/Result of merge+Tue Apr  2 09:13:24 2013//
+/ikev2.h/1.12/Tue Apr  2 09:13:26 2013//
+/ikev2_msg.c/1.25/Result of merge+Tue Apr  2 09:13:26 2013//
+/ikev2_pld.c/1.31/Result of merge+Tue Apr  2 09:13:27 2013//
+/imsg_util.c/1.7/Result of merge+Tue Apr  2 09:13:28 2013//
+/parse.y/1.30/Result of merge//
+/pfkey.c/1.23/Result of merge//
+/proc.c/1.9/Result of merge+Tue Apr  2 09:13:31 2013//
+/types.h/1.17/Mon Jan 14 14:11:49 2013//
 D

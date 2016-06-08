@@ -1,4 +1,4 @@
-/*	$OpenBSD: policy.c,v 1.40 2015/10/01 10:59:23 reyk Exp $	*/
+/*	$OpenBSD: policy.c,v 1.23 2013/01/08 10:38:19 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -17,10 +17,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/queue.h>
+#include <sys/param.h>
+#include "openbsd-compat/sys-queue.h"
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/tree.h>
+#include "openbsd-compat/sys-tree.h"
+
+#include <net/if.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,8 +65,6 @@ int
 policy_lookup(struct iked *env, struct iked_message *msg)
 {
 	struct iked_policy	 pol;
-	char			*s, idstr[IKED_ID_SIZE];
-
 
 	if (msg->msg_sa != NULL && msg->msg_sa->sa_policy != NULL) {
 		/* Existing SA with policy */
@@ -70,15 +76,6 @@ policy_lookup(struct iked *env, struct iked_message *msg)
 	pol.pol_af = msg->msg_peer.ss_family;
 	memcpy(&pol.pol_peer.addr, &msg->msg_peer, sizeof(msg->msg_peer));
 	memcpy(&pol.pol_local.addr, &msg->msg_local, sizeof(msg->msg_local));
-	if (msg->msg_id.id_type &&
-	    ikev2_print_id(&msg->msg_id, idstr, IKED_ID_SIZE) == 0 &&
-	    (s = strchr(idstr, '/')) != NULL) {
-		pol.pol_peerid.id_type = msg->msg_id.id_type;
-		pol.pol_peerid.id_length = strlen(s+1);
-		strlcpy(pol.pol_peerid.id_data, s+1,
-		    sizeof(pol.pol_peerid.id_data));
-		log_debug("%s: peerid '%s'", __func__, s+1);
-	}
 
 	/* Try to find a matching policy for this message */
 	if ((msg->msg_policy = policy_test(env, &pol)) != NULL)
@@ -100,7 +97,7 @@ policy_test(struct iked *env, struct iked_policy *key)
 {
 	struct iked_policy	*p = NULL, *pol = NULL;
 	struct iked_flow	*flow = NULL, *flowkey;
-	unsigned int		 cnt = 0;
+	u_int			 cnt = 0;
 
 	p = TAILQ_FIRST(&env->sc_policies);
 	while (p != NULL) {
@@ -132,15 +129,6 @@ policy_test(struct iked *env, struct iked_policy *key)
 			    &key->pol_flows)) != NULL &&
 			    (flow = RB_FIND(iked_flows, &p->pol_flows,
 			    flowkey)) == NULL) {
-				p = TAILQ_NEXT(p, pol_entry);
-				continue;
-			}
-			/* make sure the peer ID matches */
-			if (key->pol_peerid.id_type &&
-			    (key->pol_peerid.id_type != p->pol_peerid.id_type ||
-			    memcmp(key->pol_peerid.id_data,
-			    p->pol_peerid.id_data,
-			    sizeof(key->pol_peerid.id_data)) != 0)) {
 				p = TAILQ_NEXT(p, pol_entry);
 				continue;
 			}
@@ -214,16 +202,6 @@ policy_unref(struct iked *env, struct iked_policy *pol)
 		return;
 	if (--(pol->pol_refcnt) <= 0)
 		config_free_policy(env, pol);
-	else {
-		struct iked_sa		*tmp;
-		int			 count = 0;
-
-		TAILQ_FOREACH(tmp, &pol->pol_sapeers, sa_peer_entry)
-			count++;
-		if (count != pol->pol_refcnt)
-			log_warnx("%s: ERROR pol %p pol_refcnt %d != count %d",
-			    __func__, pol, pol->pol_refcnt, count);
-	}
 }
 
 void
@@ -231,28 +209,19 @@ sa_state(struct iked *env, struct iked_sa *sa, int state)
 {
 	const char		*a;
 	const char		*b;
-	int			 ostate = sa->sa_state;
 
-	a = print_map(ostate, ikev2_state_map);
+	a = print_map(sa->sa_state, ikev2_state_map);
 	b = print_map(state, ikev2_state_map);
 
-	sa->sa_state = state;
-	if (ostate != IKEV2_STATE_INIT &&
-	    !sa_stateok(sa, state)) {
-		log_debug("%s: cannot switch: %s -> %s", __func__, a, b);
-		sa->sa_state = ostate;
-	} else if (ostate != sa->sa_state) {
+	if (state > sa->sa_state) {
 		switch (state) {
 		case IKEV2_STATE_ESTABLISHED:
 		case IKEV2_STATE_CLOSED:
 			log_info("%s: %s -> %s from %s to %s policy '%s'",
 			    __func__, a, b,
-			    print_host((struct sockaddr *)&sa->sa_peer.addr,
-			    NULL, 0),
-			    print_host((struct sockaddr *)&sa->sa_local.addr,
-			    NULL, 0),
-			    sa->sa_policy ? sa->sa_policy->pol_name :
-			    "<unknown>");
+			    print_host(&sa->sa_peer.addr, NULL, 0),
+			    print_host(&sa->sa_local.addr, NULL, 0),
+			    sa->sa_policy->pol_name);
 			break;
 		default:
 			log_debug("%s: %s -> %s", __func__, a, b);
@@ -260,19 +229,20 @@ sa_state(struct iked *env, struct iked_sa *sa, int state)
 		}
 	}
 
+	sa->sa_state = state;
 }
 
 void
-sa_stateflags(struct iked_sa *sa, unsigned int flags)
+sa_stateflags(struct iked_sa *sa, u_int flags)
 {
-	unsigned int	require;
+	u_int	require;
 
 	if (sa->sa_state > IKEV2_STATE_SA_INIT)
 		require = sa->sa_statevalid;
 	else
 		require = sa->sa_stateinit;
 
-	log_debug("%s: 0x%04x -> 0x%04x %s (required 0x%04x %s)", __func__,
+	log_debug("%s: 0x%02x -> 0x%02x %s (required 0x%02x %s)", __func__,
 	    sa->sa_stateflags, sa->sa_stateflags | flags,
 	    print_bits(sa->sa_stateflags | flags, IKED_REQ_BITS), require,
 	    print_bits(require, IKED_REQ_BITS));
@@ -283,7 +253,7 @@ sa_stateflags(struct iked_sa *sa, unsigned int flags)
 int
 sa_stateok(struct iked_sa *sa, int state)
 {
-	unsigned int	 require;
+	u_int	 require;
 
 	if (sa->sa_state < state)
 		return (0);
@@ -295,8 +265,8 @@ sa_stateok(struct iked_sa *sa, int state)
 
 	if (state == IKEV2_STATE_SA_INIT ||
 	    state == IKEV2_STATE_VALID ||
-	    state == IKEV2_STATE_EAP_VALID) {
-		log_debug("%s: %s flags 0x%04x, require 0x%04x %s", __func__,
+	    state == IKEV2_STATE_EAP) {
+		log_debug("%s: %s flags 0x%02x, require 0x%02x %s", __func__,
 		    print_map(state, ikev2_state_map),
 		    (sa->sa_stateflags & require), require,
 		    print_bits(require, IKED_REQ_BITS));
@@ -308,58 +278,38 @@ sa_stateok(struct iked_sa *sa, int state)
 }
 
 struct iked_sa *
-sa_new(struct iked *env, uint64_t ispi, uint64_t rspi,
-    unsigned int initiator, struct iked_policy *pol)
+sa_new(struct iked *env, u_int64_t ispi, u_int64_t rspi,
+    u_int initiator, struct iked_policy *pol)
 {
 	struct iked_sa	*sa;
-	struct iked_sa	*old;
 	struct iked_id	*localid;
-	unsigned int	 diff;
+	u_int		 diff;
 
 	if ((ispi == 0 && rspi == 0) ||
 	    (sa = sa_lookup(env, ispi, rspi, initiator)) == NULL) {
 		/* Create new SA */
-		if (!initiator && ispi == 0) {
-			log_debug("%s: cannot create responder IKE SA w/o ispi",
-			    __func__);
-			return (NULL);
-		}
 		sa = config_new_sa(env, initiator);
-		if (sa == NULL) {
-			log_debug("%s: failed to allocate IKE SA", __func__);
-			return (NULL);
-		}
-		if (!initiator)
-			sa->sa_hdr.sh_ispi = ispi;
-		old = RB_INSERT(iked_sas, &env->sc_sas, sa);
-		if (old && old != sa) {
-			log_warnx("%s: duplicate IKE SA", __func__);
-			config_free_sa(env, sa);
-			return (NULL);
-		}
 	}
-	/* Update rspi in the initator case */
-	if (initiator && sa->sa_hdr.sh_rspi == 0 && rspi)
-		sa->sa_hdr.sh_rspi = rspi;
-
-	if (sa->sa_policy == NULL) {
+	if (sa == NULL) {
+		log_debug("%s: failed to get sa", __func__);
+		return (NULL);
+	}
+	if (sa->sa_policy == NULL)
 		sa->sa_policy = pol;
-		TAILQ_INSERT_TAIL(&pol->pol_sapeers, sa, sa_peer_entry);
-	} else
+	else
 		pol = sa->sa_policy;
 
-	sa->sa_statevalid = IKED_REQ_AUTH|IKED_REQ_AUTHVALID|IKED_REQ_SA;
+	sa->sa_statevalid = IKED_REQ_AUTH|IKED_REQ_SA;
 	if (pol != NULL && pol->pol_auth.auth_eap) {
-		sa->sa_statevalid |= IKED_REQ_CERT|IKED_REQ_EAPVALID;
+		sa->sa_statevalid |= IKED_REQ_CERT;
 	} else if (pol != NULL && pol->pol_auth.auth_method !=
 	    IKEV2_AUTH_SHARED_KEY_MIC) {
-		sa->sa_statevalid |= IKED_REQ_CERTVALID|IKED_REQ_CERT;
+		sa->sa_statevalid |= IKED_REQ_VALID|IKED_REQ_CERT;
 	}
 
 	if (initiator) {
 		localid = &sa->sa_iid;
-		diff = IKED_REQ_CERTVALID|IKED_REQ_AUTHVALID|IKED_REQ_SA|
-		    IKED_REQ_EAPVALID;
+		diff = IKED_REQ_VALID|IKED_REQ_SA;
 		sa->sa_stateinit = sa->sa_statevalid & ~diff;
 		sa->sa_statevalid = sa->sa_statevalid & diff;
 	} else
@@ -372,6 +322,14 @@ sa_new(struct iked *env, uint64_t ispi, uint64_t rspi,
 		return (NULL);
 	}
 
+	if (sa->sa_hdr.sh_ispi == 0)
+		sa->sa_hdr.sh_ispi = ispi;
+	if (sa->sa_hdr.sh_rspi == 0)
+		sa->sa_hdr.sh_rspi = rspi;
+
+	/* Re-insert node into the tree */
+	RB_INSERT(iked_sas, &env->sc_sas, sa);
+
 	return (sa);
 }
 
@@ -382,12 +340,6 @@ sa_free(struct iked *env, struct iked_sa *sa)
 	    print_spi(sa->sa_hdr.sh_ispi, 8),
 	    print_spi(sa->sa_hdr.sh_rspi, 8));
 
-	/* IKE rekeying running? */
-	if (sa->sa_next) {
-		RB_REMOVE(iked_sas, &env->sc_sas, sa->sa_next);
-		config_free_sa(env, sa->sa_next);
-	}
-	RB_REMOVE(iked_sas, &env->sc_sas, sa);
 	config_free_sa(env, sa);
 }
 
@@ -412,37 +364,45 @@ sa_free_flows(struct iked *env, struct iked_saflows *head)
 
 int
 sa_address(struct iked_sa *sa, struct iked_addr *addr,
-    struct sockaddr_storage *peer)
+    struct sockaddr_storage *peer, int initiator)
 {
+	struct iked_policy	*pol = sa->sa_policy;
+
+	if (pol == NULL) {
+		log_debug("%s: invalid policy", __func__);
+		return (-1);
+	}
+
 	bzero(addr, sizeof(*addr));
 	addr->addr_af = peer->ss_family;
-	addr->addr_port = htons(socket_getport((struct sockaddr *)peer));
+	addr->addr_port = htons(socket_getport(peer));
 	memcpy(&addr->addr, peer, sizeof(*peer));
 	if (socket_af((struct sockaddr *)&addr->addr, addr->addr_port) == -1) {
 		log_debug("%s: invalid address", __func__);
 		return (-1);
 	}
+
+	if (addr == &sa->sa_peer) {
+		/* XXX Re-insert node into the tree */
+		RB_REMOVE(iked_sapeers, &pol->pol_sapeers, sa);
+		memcpy(&sa->sa_polpeer, initiator ? &pol->pol_peer :
+		    &sa->sa_peer, sizeof(sa->sa_polpeer));
+		RB_INSERT(iked_sapeers, &pol->pol_sapeers, sa);
+	}
+
 	return (0);
 }
 
 void
-childsa_free(struct iked_childsa *csa)
+childsa_free(struct iked_childsa *sa)
 {
-	if (csa->csa_children) {
-		/* XXX should not happen */
-		log_warnx("%s: trying to remove CSA %p children %u",
-		    __func__, csa, csa->csa_children);
-		return;
-	}
-	if (csa->csa_parent)
-		csa->csa_parent->csa_children--;
-	ibuf_release(csa->csa_encrkey);
-	ibuf_release(csa->csa_integrkey);
-	free(csa);
+	ibuf_release(sa->csa_encrkey);
+	ibuf_release(sa->csa_integrkey);
+	free(sa);
 }
 
 struct iked_childsa *
-childsa_lookup(struct iked_sa *sa, uint64_t spi, uint8_t protoid)
+childsa_lookup(struct iked_sa *sa, u_int64_t spi, u_int8_t protoid)
 {
 	struct iked_childsa	*csa;
 
@@ -464,13 +424,13 @@ flow_free(struct iked_flow *flow)
 }
 
 struct iked_sa *
-sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi,
-    unsigned int initiator)
+sa_lookup(struct iked *env, u_int64_t ispi, u_int64_t rspi,
+    u_int initiator)
 {
 	struct iked_sa	*sa, key;
 
 	key.sa_hdr.sh_ispi = ispi;
-	/* key.sa_hdr.sh_rspi = rspi; */
+	key.sa_hdr.sh_rspi = rspi;
 	key.sa_hdr.sh_initiator = initiator;
 
 	if ((sa = RB_FIND(iked_sas, &env->sc_sas, &key)) != NULL) {
@@ -478,7 +438,6 @@ sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi,
 
 		/* Validate if SPIr matches */
 		if ((sa->sa_hdr.sh_rspi != 0) &&
-		    (rspi != 0) &&
 		    (sa->sa_hdr.sh_rspi != rspi))
 			return (NULL);
 	}
@@ -489,10 +448,8 @@ sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi,
 static __inline int
 sa_cmp(struct iked_sa *a, struct iked_sa *b)
 {
-	if (a->sa_hdr.sh_initiator > b->sa_hdr.sh_initiator)
-		return (-1);
-	if (a->sa_hdr.sh_initiator < b->sa_hdr.sh_initiator)
-		return (1);
+	if (a->sa_hdr.sh_initiator != b->sa_hdr.sh_initiator)
+		return (-2);
 
 	if (a->sa_hdr.sh_ispi > b->sa_hdr.sh_ispi)
 		return (-1);
@@ -514,11 +471,20 @@ sa_cmp(struct iked_sa *a, struct iked_sa *b)
 	return (0);
 }
 
-static __inline int
-sa_addrpool_cmp(struct iked_sa *a, struct iked_sa *b)
+struct iked_sa *
+sa_peer_lookup(struct iked_policy *pol, struct sockaddr_storage *peer)
 {
-	return (sockaddr_cmp((struct sockaddr *)&a->sa_addrpool->addr,
-	    (struct sockaddr *)&b->sa_addrpool->addr, -1));
+	struct iked_sa	 key;
+
+	memcpy(&key.sa_polpeer.addr, peer, sizeof(*peer));
+	return (RB_FIND(iked_sapeers, &pol->pol_sapeers, &key));
+}
+
+static __inline int
+sa_peer_cmp(struct iked_sa *a, struct iked_sa *b)
+{
+	return (sockaddr_cmp((struct sockaddr *)&a->sa_polpeer.addr,
+	    (struct sockaddr *)&b->sa_polpeer.addr, -1));
 }
 
 struct iked_user *
@@ -581,8 +547,10 @@ flow_cmp(struct iked_flow *a, struct iked_flow *b)
 	return (diff);
 }
 
+#ifndef __clang_analyzer__
 RB_GENERATE(iked_sas, iked_sa, sa_entry, sa_cmp);
-RB_GENERATE(iked_addrpool, iked_sa, sa_addrpool_entry, sa_addrpool_cmp);
+RB_GENERATE(iked_sapeers, iked_sa, sa_peer_entry, sa_peer_cmp);
 RB_GENERATE(iked_users, iked_user, usr_entry, user_cmp);
 RB_GENERATE(iked_activesas, iked_childsa, csa_node, childsa_cmp);
 RB_GENERATE(iked_flows, iked_flow, flow_node, flow_cmp);
+#endif
