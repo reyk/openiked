@@ -1267,7 +1267,8 @@ ikev2_pld_notify(struct iked *env, struct ikev2_payload *pld,
 		}
 		log_info("%s: USE_TRANSPORT_MODE: %s", __func__,
 		    "notification received");
-		msg->msg_sa->sa_transport = 1;
+		if (msg->msg_sa->sa_policy->pol_flags & IKED_POLICY_TRANSPORT)
+			msg->msg_sa->sa_transport = 1;
 		break;
 	case IKEV2_N_SIGNATURE_HASH_ALGORITHMS:
 		if (msg->msg_e) {
