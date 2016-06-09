@@ -1254,6 +1254,21 @@ ikev2_pld_notify(struct iked *env, struct ikev2_payload *pld,
 			msg->msg_sa->sa_cpi_out = betoh16(cpi);
 		}
 		break;
+	case IKEV2_N_USE_TRANSPORT_MODE:
+		if (!msg->msg_e) {
+			log_debug("%s: USE_TRANSPORT_MODE: %s", __func__,
+			    "notification in unencrypted payload");
+			return (-1);
+		}
+		if (len != 0) {
+			log_debug("%s: USE_TRANSPORT_MODE: %s", __func__,
+			    "ignoring malformed notification");
+			return (0);
+		}
+		log_info("%s: USE_TRANSPORT_MODE: %s", __func__,
+		    "notification received");
+		msg->msg_sa->sa_transport = 1;
+		break;
 	case IKEV2_N_SIGNATURE_HASH_ALGORITHMS:
 		if (msg->msg_e) {
 			log_debug("%s: SIGNATURE_HASH_ALGORITHMS: encrypted",

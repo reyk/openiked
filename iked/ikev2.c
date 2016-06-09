@@ -111,6 +111,8 @@ ssize_t	 ikev2_add_ts(struct ibuf *, struct ikev2_payload **, ssize_t,
 	    struct iked_sa *, int);
 ssize_t	 ikev2_add_certreq(struct ibuf *, struct ikev2_payload **, ssize_t,
 	    struct ibuf *, u_int8_t);
+ssize_t	 ikev2_add_transportnotify(struct iked *, struct ibuf *,
+	    struct ikev2_payload **, ssize_t, struct iked_sa *);
 ssize_t	 ikev2_add_ipcompnotify(struct iked *, struct ibuf *,
 	    struct ikev2_payload **, ssize_t, struct iked_sa *);
 ssize_t	 ikev2_add_ts_payload(struct ibuf *, u_int, struct iked_sa *);
@@ -1063,6 +1065,11 @@ ikev2_init_ike_auth(struct iked *env, struct iked_sa *sa)
 	    (len = ikev2_add_ipcompnotify(env, e, &pld, len, sa)) == -1)
 		goto done;
 
+	/* Transport mode IPSec. */
+	if ((pol->pol_flags & IKED_POLICY_TRANSPORT) &&
+	    (len = ikev2_add_transportnotify(env, e, &pld, len, sa)) == -1)
+		goto done;
+
 	if (ikev2_next_payload(pld, len, IKEV2_PAYLOAD_SA) == -1)
 		goto done;
 
@@ -1424,6 +1431,29 @@ ikev2_add_certreq(struct ibuf *e, struct ikev2_payload **pld, ssize_t len,
 
 	log_debug("%s: type %s length %zd", __func__,
 	    print_map(type, ikev2_cert_map), len);
+
+	return (len);
+}
+
+ssize_t
+ikev2_add_transportnotify(struct iked *env, struct ibuf *e,
+    struct ikev2_payload **pld, ssize_t len, struct iked_sa *sa)
+{
+	struct ikev2_notify		*n;
+
+	if (*pld)
+		if (ikev2_next_payload(*pld, len, IKEV2_PAYLOAD_NOTIFY) == -1)
+			return (-1);
+	if ((*pld = ikev2_add_payload(e)) == NULL)
+		return (-1);
+	len = sizeof(*n);
+	if ((n = ibuf_advance(e, len)) == NULL)
+		return (-1);
+	n->n_protoid = 0;
+	n->n_spisize = 0;
+	n->n_type = htobe16(IKEV2_N_USE_TRANSPORT_MODE);
+
+	log_info("%s: Notifying to use transport mode", __func__);
 
 	return (len);
 }
@@ -2273,6 +2303,11 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 	    (len = ikev2_add_ipcompnotify(env, e, &pld, len, sa)) == -1)
 		goto done;
 
+	/* Transport mode IPSec. */
+	if (sa->sa_transport &&
+	    (len = ikev2_add_transportnotify(env, e, &pld, len, sa)) == -1)
+		goto done;
+
 	if (ikev2_next_payload(pld, len, IKEV2_PAYLOAD_SA) == -1)
 		goto done;
 
@@ -2483,7 +2518,7 @@ ikev2_send_create_child_sa(struct iked *env, struct iked_sa *sa,
 	u_int8_t			*ptr;
 	u_int8_t			 firstpayload;
 	u_int32_t			 spi;
-	ssize_t				 len = 0;
+	ssize_t				 len;
 	int				 initiator, ret = -1;
 
 	if (rekey)
@@ -2523,9 +2558,16 @@ ikev2_send_create_child_sa(struct iked *env, struct iked_sa *sa,
 	if ((e = ibuf_static()) == NULL)
 		goto done;
 
+	len = 0;
+
 	/* compression */
 	if ((pol->pol_flags & IKED_POLICY_IPCOMP) &&
-	    (len = ikev2_add_ipcompnotify(env, e, &pld, 0, sa)) == -1)
+	    (len = ikev2_add_ipcompnotify(env, e, &pld, len, sa)) == -1)
+		goto done;
+
+	/* Transport mode IPSec. */
+	if ((pol->pol_flags & IKED_POLICY_TRANSPORT) &&
+	    (len = ikev2_add_transportnotify(env, e, &pld, len, sa)) == -1)
 		goto done;
 
 	if (pld) {
@@ -3019,7 +3061,7 @@ ikev2_resp_create_child_sa(struct iked *env, struct iked_message *msg)
 	struct ikev2_payload		*pld = NULL;
 	struct ibuf			*e = NULL, *nonce = NULL;
 	u_int8_t			 firstpayload;
-	ssize_t				 len = 0;
+	ssize_t				 len;
 	int				 initiator, protoid, rekeying = 1;
 	int				 ret = -1;
 	int				 pfs = 0;
@@ -3159,9 +3201,16 @@ ikev2_resp_create_child_sa(struct iked *env, struct iked_message *msg)
 	if ((e = ibuf_static()) == NULL)
 		goto done;
 
+	len = 0;
+
 	/* compression (unless IKE rekeying) */
 	if (!nsa && sa->sa_ipcomp &&
-	    (len = ikev2_add_ipcompnotify(env, e, &pld, 0, sa)) == -1)
+	    (len = ikev2_add_ipcompnotify(env, e, &pld, len, sa)) == -1)
+		goto done;
+
+	/* Transport mode IPSec (unless IKE rekeying). */
+	if (!nsa && sa->sa_transport &&
+	    (len = ikev2_add_transportnotify(env, e, &pld, len, sa)) == -1)
 		goto done;
 
 	if (pld) {
@@ -4379,6 +4428,7 @@ ikev2_childsa_negotiate(struct iked *env, struct iked_sa *sa,
 		csa->csa_ikesa = sa;
 		csa->csa_spi.spi_protoid = prop->prop_protoid;
 		csa->csa_esn = esn;
+		csa->csa_transport = sa->sa_transport;
 
 		/* Set up responder's SPIs */
 		if (initiator) {

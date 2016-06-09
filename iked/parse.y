@@ -2497,6 +2497,11 @@ create_ike(char *name, int af, u_int8_t ipproto, struct ipsec_hosts *hosts,
 		if (peers->dst)
 			ipb = peers->dst;
 		if (ipa == NULL && ipb == NULL) {
+			/*
+			 * If no peers were specified, flag this policy
+			 * as being able to use transport mode.
+			 */
+			pol.pol_flags |= IKED_POLICY_TRANSPORT;
 			if (hosts->src && hosts->src->next == NULL)
 				ipa = hosts->src;
 			if (hosts->dst && hosts->dst->next == NULL)

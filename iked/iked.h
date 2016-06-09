@@ -242,6 +242,7 @@ struct iked_policy {
 #define IKED_POLICY_QUICK		 0x08
 #define IKED_POLICY_SKIP		 0x10
 #define IKED_POLICY_IPCOMP		 0x20
+#define IKED_POLICY_TRANSPORT		 0x40
 
 	int				 pol_refcnt;
 
@@ -426,6 +427,7 @@ struct iked_sa {
 	struct iked_sa			*sa_next;	/* IKE SA rekeying */
 	u_int64_t			 sa_rekeyspi;	/* peerspi for rekey*/
 
+	u_int8_t			 sa_transport;	/* Transport mode */
 	u_int8_t			 sa_ipcomp;	/* IPcomp transform */
 	u_int16_t			 sa_cpi_out;	/* IPcomp outgoing */
 	u_int16_t			 sa_cpi_in;	/* IPcomp incoming*/

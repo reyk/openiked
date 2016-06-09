@@ -453,6 +453,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 
 #else /* !_OPENBSD_IPSEC_API_VERSION */
 
+	struct iked_sa		*ike_sa = flow->flow_ikesa;
 	struct sadb_msg		 smsg;
 	struct sadb_address	 sa_src, sa_dst;
 	struct sadb_x_ipsecrequest sa_ipsec;
@@ -535,7 +536,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	bzero(&sa_2, sizeof(sa_2));
 	sa_2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
 	sa_2.sadb_x_sa2_len = sizeof(sa_2) / 8;
-	sa_2.sadb_x_sa2_mode = IPSEC_MODE_TRANSPORT;
+	sa_2.sadb_x_sa2_mode = IPSEC_MODE_ANY;
 
 	bzero(&sa_src, sizeof(sa_src));
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
@@ -563,7 +564,8 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		bzero(&sa_ipsec, sizeof(sa_ipsec));
 		sa_ipsec.sadb_x_ipsecrequest_proto =
 		    satype == SADB_SATYPE_AH ? IPPROTO_AH : IPPROTO_ESP;
-		sa_ipsec.sadb_x_ipsecrequest_mode = IPSEC_MODE_TRANSPORT; /* XXX */
+		sa_ipsec.sadb_x_ipsecrequest_mode = (ike_sa->sa_transport) ?
+		    IPSEC_MODE_TRANSPORT : IPSEC_MODE_TUNNEL;
 		sa_ipsec.sadb_x_ipsecrequest_level =
 		    flow->flow_dir == IPSEC_DIR_INBOUND ?
 		    IPSEC_LEVEL_USE : IPSEC_LEVEL_REQUIRE;
@@ -657,7 +659,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 int
 pfkey_sa(int sd, uint8_t satype, uint8_t action, struct iked_childsa *sa)
 {
-	    struct sadb_msg	     smsg;
+	struct sadb_msg		 smsg;
 	struct sadb_sa		 sadb;
 	struct sadb_address	 sa_src, sa_dst;
 	struct sadb_key		 sa_authkey, sa_enckey;
@@ -729,7 +731,8 @@ pfkey_sa(int sd, uint8_t satype, uint8_t action, struct iked_childsa *sa)
 	bzero(&sa_2, sizeof(sa_2));
 	sa_2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
 	sa_2.sadb_x_sa2_len = sizeof(sa_2) / 8;
-	sa_2.sadb_x_sa2_mode = IPSEC_MODE_TRANSPORT; /* XXX */
+	sa_2.sadb_x_sa2_mode = (sa->csa_transport) ? IPSEC_MODE_TRANSPORT :
+	    IPSEC_MODE_TUNNEL;
 #endif
 
 	bzero(&sa_src, sizeof(sa_src));
