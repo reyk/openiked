@@ -23,7 +23,12 @@
 #include <sys/uio.h>
 
 #include <netinet/in.h>
+#if defined(HAVE_NETIPSEC_IPSEC_H)
 #include <netipsec/ipsec.h>
+#endif
+#if defined(HAVE_NETINET_IP_IPSP_H)
+#include <netinet/ip_ipsp.h>
+#endif
 #include <arpa/inet.h>
 
 #include <stdlib.h>

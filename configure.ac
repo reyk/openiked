@@ -139,6 +139,18 @@ AC_CHECK_HEADERS([\
 	getopt.h \
 	libkern/OSByteOrder.h \
 	ndir.h \
+	sys/cdefs.h \
+	sys/endian.h \
+	sys/ndir.h \
+	sys/param.h \
+	sys/pstat.h \
+	sys/socket.h \
+	sys/stat.h \
+	sys/sysctl.h \
+	sys/types.h \
+	sys/uio.h \
+	sys/un.h \
+	sys/wait.h \
 	net/pfkeyv2.h \
 	linux/pfkeyv2.h \
 	linux/in.h \
@@ -158,22 +170,14 @@ AC_CHECK_HEADERS([\
 	stdio.h \
 	stdlib.h \
 	string.h \
-	sys/cdefs.h \
-	sys/endian.h \
-	sys/ndir.h \
-	sys/param.h \
-	sys/pstat.h \
-	sys/socket.h \
-	sys/stat.h \
-	sys/sysctl.h \
-	sys/types.h \
-	sys/uio.h \
-	sys/un.h \
-	sys/wait.h \
 	syslog.h \
 	ucred.h \
 	unistd.h \
 	vis.h \
+], , , [
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 ])
 
 # login_cap.h requires sys/types.h on NetBSD

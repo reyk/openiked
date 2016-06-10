@@ -24,7 +24,12 @@
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#if defined(HAVE_NETIPSEC_IPSEC_H)
 #include <netipsec/ipsec.h>
+#endif
+#if defined(HAVE_NETINET_IP_IPSP_H)
+#include <netinet/ip_ipsp.h>
+#endif
 #include <net/pfkeyv2.h>
 
 #include <err.h>
@@ -72,7 +77,9 @@ static const struct pfkey_constmap pfkey_encr[] = {
 #ifdef SADB_X_EALG_DES_IV64
 	{ SADB_X_EALG_DES_IV64, IKEV2_XFORMENCR_DES_IV64 },
 #endif
+#ifdef SADB_X_EALG_DESCBC
 	{ SADB_EALG_DESCBC,	IKEV2_XFORMENCR_DES },
+#endif
 	{ SADB_EALG_3DESCBC,	IKEV2_XFORMENCR_3DES },
 #ifdef SADB_X_EALG_RC5
 	{ SADB_X_EALG_RC5,	IKEV2_XFORMENCR_RC5 },
@@ -242,7 +249,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		prefixlen2mask6(flow->flow_src.addr_net ?
 		    flow->flow_src.addr_mask : 128,
 		    (u_int32_t *)((struct sockaddr_in6 *)
-		    &smask)->sin6_addr.s6_addrek;
+		    &smask)->sin6_addr.s6_addr);
 	default:
 		log_warnx("%s: unsupported address family %d",
 		    __func__, flow->flow_src.addr_af);
@@ -344,11 +351,11 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 		    (sizeof(sa_peer) + ROUNDUP(speer.ss_len)) / 8;
 
 		/* local id */
-		sa_srcid = pfkey_id2ident(flow->flow_srcid,
+		sa_srcid = pfkey_id2ident(IKESA_SRCID(flow->flow_ikesa),
 		    SADB_EXT_IDENTITY_SRC);
 
 		/* peer id */
-		sa_dstid = pfkey_id2ident(flow->flow_dstid,
+		sa_dstid = pfkey_id2ident(IKESA_DSTID(flow->flow_ikesa),
 		    SADB_EXT_IDENTITY_DST);
 	}
 
@@ -1863,47 +1870,47 @@ pfkey_timer_cb(int unused, short event, void *arg)
 int
 pfkey_process(struct iked *env, struct pfkey_message *pm)
 {
-    struct iked_spi	 spi;
-    struct sadb_sa	*sa;
-    struct sadb_lifetime    *sa_ltime;
-    struct sadb_msg	*hdr;
+	struct iked_spi		 spi;
+	struct sadb_sa		*sa;
+	struct sadb_lifetime	*sa_ltime;
+	struct sadb_msg		*hdr;
 #if defined(_OPENBSD_IPSEC_API_VERSION)
-    struct sadb_msg	 smsg;
-    struct iked_addr	 peer;
-    struct iked_flow	 flow;
-    struct sadb_address *sa_addr;
-    struct sadb_protocol    *sa_proto;
-    struct sadb_x_policy     sa_pol;
-    struct sadb_x_sa2	 sa_2;
-    struct sockaddr *ssrc, *sdst, *smask, *dmask, *speer;
-    struct iovec	 iov[IOV_CNT];
-    int		 iov_cnt, sd = env->sc_pfkey;
-    u_int8_t	    *reply;
-    ssize_t	     rlen;
-    const char	    *errmsg = NULL;
+	struct sadb_msg		 smsg;
+	struct iked_addr	 peer;
+	struct iked_flow	 flow;
+	struct sadb_address	*sa_addr;
+	struct sadb_protocol	*sa_proto;
+	struct sadb_x_policy	 sa_pol;
+	struct sockaddr		*ssrc, *sdst, *smask, *dmask, *speer;
+	struct iovec		 iov[IOV_CNT];
+	int			 ret = 0, iov_cnt, sd;
+	uint8_t			*reply;
+	ssize_t			 rlen;
+	const char		*errmsg = NULL;
+	size_t			 slen;
 #else
-    struct iked_addr	 peer;
-    struct sadb_address *sa_addr;
-    struct sockaddr *speer;
-    struct sadb_x_policy    *sa_pol;
-    struct iked_flow flow;
-    struct sockaddr *ssrc;
+	struct iked_addr	 peer;
+	struct sadb_address *sa_addr;
+	struct sockaddr *speer;
+	struct sadb_x_policy	*sa_pol;
+	struct iked_flow flow;
+	struct sockaddr *ssrc;
 #endif
-    u_int8_t	    *data = pm->pm_data;
-    ssize_t	     len = pm->pm_length;
+	u_int8_t		*data = pm->pm_data;
+	ssize_t		 len = pm->pm_length;
 
-    if (!env || !data || !len)
+	if (!env || !data || !len)
 	return 0;
 
-    hdr = (struct sadb_msg *)data;
+	hdr = (struct sadb_msg *)data;
 
-    switch (hdr->sadb_msg_type) {
-    case SADB_ACQUIRE:
+	switch (hdr->sadb_msg_type) {
+	case SADB_ACQUIRE:
 	/* Get peer from the acquire message */
 	if ((sa_addr = pfkey_find_ext(data, len,
-	    SADB_EXT_ADDRESS_DST)) == NULL) {
-	    log_debug("%s: no peer address", __func__);
-	    return 0;
+		SADB_EXT_ADDRESS_DST)) == NULL) {
+		log_debug("%s: no peer address", __func__);
+		return 0;
 	}
 	speer = (struct sockaddr *)(sa_addr + 1);
 	//speer = (struct sockaddr_storage *)(sa_addr + 1);
@@ -1912,145 +1919,151 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 	peer.addr_port = htons(socket_getport(speer));
 	memcpy(&peer.addr, speer, sizeof(*speer));
 	if (socket_af((struct sockaddr *)&peer.addr,
-	    peer.addr_port) == -1) {
-	    log_debug("%s: invalid address", __func__);
-	    return 0;
+		peer.addr_port) == -1) {
+		log_debug("%s: invalid address", __func__);
+		return 0;
 	}
 	log_debug("%s: acquire request (peer %s)", __func__,
-	    print_host(speer, NULL, 0));
+		print_host(speer, NULL, 0));
 
 #if defined(_OPENBSD_IPSEC_API_VERSION)
-	/* Get the matching flow */
-	bzero(&flow, sizeof(flow));
-	flow.flow_peer = &peer;
 
-	bzero(&smsg, sizeof(smsg));
-	smsg.sadb_msg_version = PF_KEY_V2;
-	smsg.sadb_msg_seq = ++sadb_msg_seq;
-	smsg.sadb_msg_pid = getpid();
-	smsg.sadb_msg_len = sizeof(smsg) / 8;
-	smsg.sadb_msg_type = SADB_X_ASKPOLICY;
+		/* get the matching flow */
+		bzero(&smsg, sizeof(smsg));
+		smsg.sadb_msg_version = PF_KEY_V2;
+		smsg.sadb_msg_seq = ++sadb_msg_seq;
+		smsg.sadb_msg_pid = getpid();
+		smsg.sadb_msg_len = sizeof(smsg) / 8;
+		smsg.sadb_msg_type = SADB_X_ASKPOLICY;
 
-	iov_cnt = 0;
+		iov_cnt = 0;
 
-	iov[iov_cnt].iov_base = &smsg;
-	iov[iov_cnt].iov_len = sizeof(smsg);
-	iov_cnt++;
+		iov[iov_cnt].iov_base = &smsg;
+		iov[iov_cnt].iov_len = sizeof(smsg);
+		iov_cnt++;
 
-	bzero(&sa_pol, sizeof(sa_pol));
-	sa_pol.sadb_x_policy_exttype = SADB_X_EXT_POLICY;
-	sa_pol.sadb_x_policy_len = sizeof(sa_pol) / 8;
-	sa_pol.sadb_x_policy_seq = hdr->sadb_msg_seq;
+		bzero(&sa_pol, sizeof(sa_pol));
+		sa_pol.sadb_x_policy_exttype = SADB_X_EXT_POLICY;
+		sa_pol.sadb_x_policy_len = sizeof(sa_pol) / 8;
+		sa_pol.sadb_x_policy_seq = hdr->sadb_msg_seq;
 
-	iov[iov_cnt].iov_base = &sa_pol;
-	iov[iov_cnt].iov_len = sizeof(sa_pol);
-	smsg.sadb_msg_len += sizeof(sa_pol) / 8;
-	iov_cnt++;
+		iov[iov_cnt].iov_base = &sa_pol;
+		iov[iov_cnt].iov_len = sizeof(sa_pol);
+		smsg.sadb_msg_len += sizeof(sa_pol) / 8;
+		iov_cnt++;
 
-	if (pfkey_write(sd, &smsg, iov, iov_cnt, &reply, &rlen)) {
-	    log_warnx("%s: failed to get a policy", __func__);
-	    return 0;
-	}
+		if (pfkey_write(sd, &smsg, iov, iov_cnt, &reply, &rlen)) {
+			log_warnx("%s: failed to get a policy", __func__);
+			return (0);
+		}
 
-	if ((sa_addr = pfkey_find_ext(reply, rlen,
-	    SADB_X_EXT_SRC_FLOW)) == NULL) {
-	    errmsg = "flow source address";
-	    goto out;
-	}
-	ssrc = (struct sockaddr_storage *)(sa_addr + 1);
-	flow.flow_src.addr_af = ssrc->ss_family;
-	flow.flow_src.addr_port = htons(socket_getport(ssrc));
-	memcpy(&flow.flow_src.addr, ssrc, sizeof(*ssrc));
-	if (socket_af((struct sockaddr *)&flow.flow_src.addr,
-	    flow.flow_src.addr_port) == -1) {
-	    log_debug("%s: invalid address", __func__);
-	    return 0;
-	}
+		if ((sa_addr = pfkey_find_ext(reply, rlen,
+		    SADB_X_EXT_SRC_FLOW)) == NULL) {
+			errmsg = "flow source address";
+			goto out;
+		}
+		ssrc = (struct sockaddr *)(sa_addr + 1);
+		flow.flow_src.addr_af = ssrc->sa_family;
+		flow.flow_src.addr_port = htons(socket_getport(ssrc));
+		if ((slen = ssrc->sa_len) > sizeof(flow.flow_src.addr)) {
+			log_debug("%s: invalid src address len", __func__);
+			return (0);
+		}
+		memcpy(&flow.flow_src.addr, ssrc, slen);
+		if (socket_af((struct sockaddr *)&flow.flow_src.addr,
+		    flow.flow_src.addr_port) == -1) {
+			log_debug("%s: invalid address", __func__);
+			return (0);
+		}
 
-	if ((sa_addr = pfkey_find_ext(reply, rlen,
-	    SADB_X_EXT_DST_FLOW)) == NULL) {
-	    errmsg = "flow destination address";
-	    goto out;
-	}
-	sdst = (struct sockaddr_storage *)(sa_addr + 1);
-	flow.flow_dst.addr_af = sdst->ss_family;
-	flow.flow_dst.addr_port = htons(socket_getport(sdst));
-	memcpy(&flow.flow_dst.addr, sdst, sizeof(*sdst));
-	if (socket_af((struct sockaddr *)&flow.flow_dst.addr,
-	    flow.flow_dst.addr_port) == -1) {
-	    log_debug("%s: invalid address", __func__);
-	    return 0;
-	}
+		if ((sa_addr = pfkey_find_ext(reply, rlen,
+		    SADB_X_EXT_DST_FLOW)) == NULL) {
+			errmsg = "flow destination address";
+			goto out;
+		}
+		sdst = (struct sockaddr *)(sa_addr + 1);
+		flow.flow_dst.addr_af = sdst->sa_family;
+		flow.flow_dst.addr_port = htons(socket_getport(sdst));
+		if ((slen = sdst->sa_len) > sizeof(flow.flow_dst.addr)) {
+			log_debug("%s: invalid dst address len", __func__);
+			return (0);
+		}
+		memcpy(&flow.flow_dst.addr, sdst, slen);
+		if (socket_af((struct sockaddr *)&flow.flow_dst.addr,
+		    flow.flow_dst.addr_port) == -1) {
+			log_debug("%s: invalid address", __func__);
+			return (0);
+		}
 
-	if ((sa_addr = pfkey_find_ext(reply, rlen,
-	    SADB_X_EXT_SRC_MASK)) == NULL) {
-	    errmsg = "flow source mask";
-	    goto out;
-	}
-	smask = (struct sockaddr_storage *)(sa_addr + 1);
-	switch (smask->ss_family) {
-	case AF_INET:
-	    flow.flow_src.addr_mask =
-		mask2prefixlen((struct sockaddr *)smask);
-	    if (flow.flow_src.addr_mask != 32)
-		flow.flow_src.addr_net = 1;
-	    break;
-	case AF_INET6:
-	    flow.flow_src.addr_mask =
-		mask2prefixlen6((struct sockaddr *)smask);
-	    if (flow.flow_src.addr_mask != 128)
-		flow.flow_src.addr_net = 1;
-	    break;
-	default:
-	    log_debug("%s: bad address family", __func__);
-	    free(reply);
-	    return 0;
-	}
+		if ((sa_addr = pfkey_find_ext(reply, rlen,
+		    SADB_X_EXT_SRC_MASK)) == NULL) {
+			errmsg = "flow source mask";
+			goto out;
+		}
+		smask = (struct sockaddr *)(sa_addr + 1);
+		switch (smask->sa_family) {
+		case AF_INET:
+			flow.flow_src.addr_mask =
+			    mask2prefixlen((struct sockaddr *)smask);
+			if (flow.flow_src.addr_mask != 32)
+				flow.flow_src.addr_net = 1;
+			break;
+		case AF_INET6:
+			flow.flow_src.addr_mask =
+			    mask2prefixlen6((struct sockaddr *)smask);
+			if (flow.flow_src.addr_mask != 128)
+				flow.flow_src.addr_net = 1;
+			break;
+		default:
+			log_debug("%s: bad address family", __func__);
+			free(reply);
+			return (0);
+		}
 
-	if ((sa_addr = pfkey_find_ext(reply, rlen,
-	    SADB_X_EXT_DST_MASK)) == NULL) {
-	    errmsg = "flow destination mask";
-	    goto out;
-	}
-	dmask = (struct sockaddr_storage *)(sa_addr + 1);
-	switch (dmask->ss_family) {
-	case AF_INET:
-	    flow.flow_dst.addr_mask =
-		mask2prefixlen((struct sockaddr *)dmask);
-	    if (flow.flow_src.addr_mask != 32)
-		flow.flow_src.addr_net = 1;
-	    break;
-	case AF_INET6:
-	    flow.flow_dst.addr_mask =
-		mask2prefixlen6((struct sockaddr *)dmask);
-	    if (flow.flow_src.addr_mask != 128)
-		flow.flow_src.addr_net = 1;
-	    break;
-	default:
-	    log_debug("%s: bad address family", __func__);
-	    free(reply);
-	    return 0;
-	}
+		if ((sa_addr = pfkey_find_ext(reply, rlen,
+		    SADB_X_EXT_DST_MASK)) == NULL) {
+			errmsg = "flow destination mask";
+			goto out;
+		}
+		dmask = (struct sockaddr *)(sa_addr + 1);
+		switch (dmask->sa_family) {
+		case AF_INET:
+			flow.flow_dst.addr_mask =
+			    mask2prefixlen((struct sockaddr *)dmask);
+			if (flow.flow_src.addr_mask != 32)
+				flow.flow_src.addr_net = 1;
+			break;
+		case AF_INET6:
+			flow.flow_dst.addr_mask =
+			    mask2prefixlen6((struct sockaddr *)dmask);
+			if (flow.flow_src.addr_mask != 128)
+				flow.flow_src.addr_net = 1;
+			break;
+		default:
+			log_debug("%s: bad address family", __func__);
+			free(reply);
+			return (0);
+		}
 
-	if ((sa_proto = pfkey_find_ext(reply, rlen,
-	    SADB_X_EXT_FLOW_TYPE)) == NULL) {
-	    errmsg = "flow protocol";
-	    goto out;
-	}
-	flow.flow_dir = sa_proto->sadb_protocol_direction;
+		if ((sa_proto = pfkey_find_ext(reply, rlen,
+		    SADB_X_EXT_FLOW_TYPE)) == NULL) {
+			errmsg = "flow protocol";
+			goto out;
+		}
+		flow.flow_dir = sa_proto->sadb_protocol_direction;
 
-	log_debug("%s: flow %s from %s/%s to %s/%s via %s", __func__,
-	    flow.flow_dir == IPSP_DIRECTION_IN ? "in" : "out",
-	    print_host(ssrc, NULL, 0), print_host(smask, NULL, 0),
-	    print_host(sdst, NULL, 0), print_host(dmask, NULL, 0),
-	    print_host(speer, NULL, 0));
+		log_debug("%s: flow %s from %s/%s to %s/%s via %s", __func__,
+		    flow.flow_dir == IPSP_DIRECTION_IN ? "in" : "out",
+		    print_host(ssrc, NULL, 0), print_host(smask, NULL, 0),
+		    print_host(sdst, NULL, 0), print_host(dmask, NULL, 0),
+		    print_host(speer, NULL, 0));
 
-	ret = ikev2_acquire_sa(env, &flow);
+		ret = ikev2_acquire_sa(env, &flow);
 
 out:
-	if (errmsg)
-	    log_warnx("%s: %s wasn't found", __func__, errmsg);
-	free(reply);
+		if (errmsg)
+			log_warnx("%s: %s wasn't found", __func__, errmsg);
+		free(reply);
 #elif defined(SADB_X_EXT_POLICY)
 	/*
 	 * On an upcall from the kernel, reconstruct iked_flow with src
@@ -2060,82 +2073,82 @@ out:
 	flow.flow_peer = &peer;
 	flow.flow_dst = peer;
 	if (flow.flow_dst.addr_af == AF_INET) {
-	    flow.flow_dst.addr_mask = 32;
+		flow.flow_dst.addr_mask = 32;
 	}
 	if ((sa_pol = pfkey_find_ext(data, len,
-	    SADB_X_EXT_POLICY)) == NULL) {
-	    log_debug("%s: no policy extension", __func__);
-	    return 0;
+		SADB_X_EXT_POLICY)) == NULL) {
+		log_debug("%s: no policy extension", __func__);
+		return 0;
 	}
 
 	if ((sa_addr = pfkey_find_ext(data, len,
-	    SADB_EXT_ADDRESS_SRC)) == NULL) {
-	    log_debug("%s: no src in ext_policy upcall", __func__);
-	    return 0;
+		SADB_EXT_ADDRESS_SRC)) == NULL) {
+		log_debug("%s: no src in ext_policy upcall", __func__);
+		return 0;
 	}
 	ssrc = (struct sockaddr*)(sa_addr + 1);
 	flow.flow_src.addr_af = ssrc->sa_family;
 	flow.flow_src.addr_port = htons(socket_getport(ssrc));
 	if (flow.flow_src.addr_af == AF_INET) {
-	    flow.flow_src.addr_mask = 32;
+		flow.flow_src.addr_mask = 32;
 	}
 	memcpy(&flow.flow_src.addr, ssrc, sizeof(*ssrc));
 	if (socket_af((struct sockaddr *)&flow.flow_src.addr,
-	    flow.flow_src.addr_port) == -1) {
-	    log_debug("%s: invalid address", __func__);
-	    return 0;
+		flow.flow_src.addr_port) == -1) {
+		log_debug("%s: invalid address", __func__);
+		return 0;
 	}
 
 	log_debug("%s: flow %s from to %s ", __func__,
-	    print_host((struct sockaddr*)&(flow.flow_src.addr), NULL, 0),
-	    print_host((struct sockaddr*)&(flow.flow_dst.addr), NULL, 0));
+		print_host((struct sockaddr*)&(flow.flow_src.addr), NULL, 0),
+		print_host((struct sockaddr*)&(flow.flow_dst.addr), NULL, 0));
 	ikev2_acquire_sa(env, &flow);
 #else
 #warning PFKEYv2 SADB_ACQUIRE not implemented
 	log_debug("%s: SADB_ACQUIRE not yet supported here, ignored",
-	    __func__);
+		__func__);
 #endif
 	break;
 
-    case SADB_EXPIRE:
+	case SADB_EXPIRE:
 	if ((sa = pfkey_find_ext(data, len, SADB_EXT_SA)) == NULL) {
-	    log_warnx("%s: SA extension wasn't found", __func__);
-	    return 0;
+		log_warnx("%s: SA extension wasn't found", __func__);
+		return 0;
 	}
 	if ((sa_ltime = pfkey_find_ext(data, len,
-	    SADB_EXT_LIFETIME_SOFT)) == NULL &&
-	    (sa_ltime = pfkey_find_ext(data, len,
-	    SADB_EXT_LIFETIME_HARD)) == NULL) {
-	    log_warnx("%s: lifetime extension wasn't found",
+		SADB_EXT_LIFETIME_SOFT)) == NULL &&
+		(sa_ltime = pfkey_find_ext(data, len,
+		SADB_EXT_LIFETIME_HARD)) == NULL) {
+		log_warnx("%s: lifetime extension wasn't found",
 		__func__);
-	    return 0;
+		return 0;
 	}
 	spi.spi = ntohl(sa->sadb_sa_spi);
 	spi.spi_size = 4;
 	switch (hdr->sadb_msg_satype) {
 	case SADB_SATYPE_AH:
-	    spi.spi_protoid = IKEV2_SAPROTO_AH;
-	    break;
+		spi.spi_protoid = IKEV2_SAPROTO_AH;
+		break;
 	case SADB_SATYPE_ESP:
-	    spi.spi_protoid = IKEV2_SAPROTO_ESP;
-	    break;
+		spi.spi_protoid = IKEV2_SAPROTO_ESP;
+		break;
 	default:
-	    log_warnx("%s: usupported SA type %d spi %s",
+		log_warnx("%s: usupported SA type %d spi %s",
 		__func__, hdr->sadb_msg_satype,
 		print_spi(spi.spi, spi.spi_size));
-	    return 0;
+		return 0;
 	}
 
 	log_debug("%s: SA %s is expired, pending %s", __func__,
-	    print_spi(spi.spi, spi.spi_size),
-	    sa_ltime->sadb_lifetime_exttype == SADB_EXT_LIFETIME_SOFT ?
-	    "rekeying" : "deletion");
+		print_spi(spi.spi, spi.spi_size),
+		sa_ltime->sadb_lifetime_exttype == SADB_EXT_LIFETIME_SOFT ?
+		"rekeying" : "deletion");
 
-	if (sa_ltime->sadb_lifetime_exttype == SADB_EXT_LIFETIME_SOFT)
-	 ikev2_rekey_sa(env, &spi);
-	else
-	 ikev2_drop_sa(env, &spi);
-	break;
-    }
-    return 0; 
+		if (sa_ltime->sadb_lifetime_exttype == SADB_EXT_LIFETIME_SOFT)
+			ikev2_rekey_sa(env, &spi);
+		else
+			ikev2_drop_sa(env, &spi);
+		break;
+	}
+	return 0;
 }
