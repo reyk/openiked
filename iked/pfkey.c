@@ -1522,6 +1522,7 @@ pfkey_flow_delete(int fd, struct iked_flow *flow)
 int
 pfkey_block(int fd, int af, unsigned int action)
 {
+#if defined(_OPENBSD_IPSEC_API_VERSION)
 	struct iked_flow	 flow;
 
 	if (!pfkey_blockipv6)
@@ -1545,6 +1546,10 @@ pfkey_block(int fd, int af, unsigned int action)
 
 	if (pfkey_flow(fd, 0, action, &flow) == -1)
 		return (-1);
+#else
+	/* XXX the action above currently fails on KAME */
+	pfkey_blockipv6 = 0;
+#endif
 
 	return (0);
 }
