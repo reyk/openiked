@@ -31,7 +31,7 @@
 #include <pwd.h>
 #include <event.h>
 #include <imsg.h>
-
+#include <openssl/rand.h>
 #include "iked.h"
 
 void	 proc_open(struct privsep *, struct privsep_proc *,
@@ -336,6 +336,9 @@ proc_run(struct privsep *ps, struct privsep_proc *p,
 	const char		*root;
 	struct control_sock	*rcs;
 	unsigned int		 n;
+#ifndef LIBRESSL_VERSION_NUMBER
+	u_int32_t		 seed[256];
+#endif
 
 	if (ps->ps_noaction)
 		return (0);
@@ -415,6 +418,10 @@ proc_run(struct privsep *ps, struct privsep_proc *p,
 	signal_add(&ps->ps_evsigpipe, NULL);
 	signal_add(&ps->ps_evsigusr1, NULL);
 
+#ifndef LIBRESSL_VERSION_NUMBER
+	arc4random_buf(seed, sizeof(seed));
+	RAND_seed(seed, sizeof(seed));
+#endif
 	proc_listen(ps, procs, nproc);
 
 	if (p->p_id == PROC_CONTROL && ps->ps_instance == 0) {
