@@ -57,6 +57,12 @@ enum
     defined(HAVE_NETIPSEC_IPSEC_H) || defined(HAVE_LINUX_IPSEC_H))
 #define IPSP_DIRECTION_IN	IPSEC_DIR_INBOUND
 #define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND	/* XXX Linux: _FWD? */
+#ifndef CPI_PRIVATE_MIN
+#define CPI_PRIVATE_MIN		61440
+#endif
+#ifndef CPI_PRIVATE_MAX
+#define CPI_PRIVATE_MAX		65535
+#endif
 #endif
 
 #if defined(HAVE_NET_PFKEYV2_H) || defined(HAVE_LINUX_PFKEYV2_H)
@@ -133,6 +139,18 @@ enum
 
 #if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
 # define O_NONBLOCK	 00004	/* Non Blocking Open */
+#endif
+
+#if !defined(HAVE_DECL_SOCK_NONBLOCK)
+# define SOCK_NONBLOCK	0x4000	/* Set O_NONBLOCK */
+#endif
+
+#if !defined(HAVE_DECL_SOCK_CLOEXEC)
+# define SOCK_CLOEXEC	0x8000	/* Set FD_CLOEXEC */
+#endif
+
+#if !defined(HAVE_DECL_SOCK_CLOEXEC) || !defined(HAVE_DECL_SOCK_NONBLOCK)
+# define SOCK_SETFLAGS	0xf000	/* Set flags as checked above */
 #endif
 
 #ifndef S_ISDIR

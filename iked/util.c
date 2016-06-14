@@ -212,7 +212,7 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		return (-1);
 	}
 
-	if ((s = socket(sa->sa_family,
+	if ((s = bsd_socket(sa->sa_family,
 	    SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		log_warn("%s: failed to get UDP socket", __func__);
 		return (-1);

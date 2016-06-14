@@ -1901,7 +1901,6 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 	return 0;
 
 	hdr = (struct sadb_msg *)data;
-	sd = env->sc_pfkey;
 
 	switch (hdr->sadb_msg_type) {
 	case SADB_ACQUIRE:
@@ -1926,6 +1925,7 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 		print_host(speer, NULL, 0));
 
 #if defined(_OPENBSD_IPSEC_API_VERSION)
+		sd = env->sc_pfkey;
 
 		/* get the matching flow */
 		bzero(&smsg, sizeof(smsg));

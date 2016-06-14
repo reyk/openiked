@@ -222,7 +222,7 @@ int
 ca_sign(struct ca *ca, char *keyname, int type)
 {
 	char		cmd[PATH_MAX * 2];
-	char		hostname[HOST_NAME_MAX+1];
+	char		hostname[_POSIX_HOST_NAME_MAX+1];
 	char		name[128];
 	const char	*extensions = NULL;
 

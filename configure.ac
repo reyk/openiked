@@ -432,6 +432,7 @@ else
 fi
 
 AC_CHECK_FUNCS([ \
+	accept4 \
 	arc4random \
 	arc4random_buf \
 	arc4random_uniform \
@@ -441,6 +442,7 @@ AC_CHECK_FUNCS([ \
 	closefrom \
 	dirfd \
 	dirname \
+	explicit_bzero \
 	fgetln \
 	freeaddrinfo \
 	getaddrinfo \
@@ -448,6 +450,8 @@ AC_CHECK_FUNCS([ \
 	getopt \
 	getpeereid \
 	memmove \
+	pledge \
+	realloc_array \
 	setproctitle \
 	setregid \
 	setreuid \
@@ -495,6 +499,8 @@ AC_CHECK_DECLS([O_NONBLOCK], , ,
 # include <fcntl.h>
 #endif
 	])
+
+AC_CHECK_DECLS([SOCK_NONBLOCK SOCK_CLOEXEC], , , [#include <sys/socket.h>])
 
 AC_CHECK_DECLS([writev], , , [
 #include <sys/types.h>

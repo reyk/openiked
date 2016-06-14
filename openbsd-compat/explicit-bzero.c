@@ -4,6 +4,7 @@
  * Written by Matthew Dempsky.
  */
 
+#if !defined(EXPLICIT_BZERO)
 #include <string.h>
 
 __attribute__((weak)) void
@@ -17,3 +18,4 @@ explicit_bzero(void *buf, size_t len)
 	memset(buf, 0, len);
 	__explicit_bzero_hook(buf, len);
 }
+#endif

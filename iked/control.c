@@ -83,7 +83,7 @@ control_init(struct privsep *ps, struct control_sock *cs)
 	if (cs->cs_name == NULL)
 		return (0);
 
-	if ((fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1) {
+	if ((fd = bsd_socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1) {
 		log_warn("%s: socket", __func__);
 		return (-1);
 	}
@@ -176,7 +176,7 @@ control_accept(int listenfd, short event, void *arg)
 		return;
 
 	len = sizeof(sun);
-	if ((connfd = accept4(listenfd,
+	if ((connfd = bsd_accept4(listenfd,
 	    (struct sockaddr *)&sun, &len, SOCK_NONBLOCK)) == -1) {
 		/*
 		 * Pause accept if we are out of file descriptors, or

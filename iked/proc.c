@@ -174,7 +174,7 @@ proc_open(struct privsep *ps, struct privsep_proc *p,
 				if (pa->pp_pipes[procs[proc].p_id][j] != -1)
 					continue;
 
-				if (socketpair(AF_UNIX,
+				if (bsd_socketpair(AF_UNIX,
 				    SOCK_STREAM | SOCK_NONBLOCK,
 				    PF_UNSPEC, fds) == -1)
 					fatal("socketpair");

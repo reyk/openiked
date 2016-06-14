@@ -177,7 +177,20 @@ int scan_scaled(char *scaled, long long *result);
 int fmt_scaled(long long number, char *result);
 #endif
 
+#ifndef HAVE_REALLOCARRAY
 void *reallocarray(void *, size_t , size_t);
+#endif
+
+#ifndef HAVE_EXPLICIT_BZERO
 void explicit_bzero(void *buf, size_t len);
+#endif
+
+#ifndef HAVE_PLEDGE
+int pledge(const char *promises, const char *paths[]);
+#endif
+
+int bsd_socket(int domain, int type, int protocol);
+int bsd_socketpair(int d, int type, int protocol, int sv[2]);
+int bsd_accept4(int s, struct sockaddr *addr, socklen_t *addrlen, int flags);
 
 #endif /* _OPENBSD_COMPAT_H */
