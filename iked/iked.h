@@ -17,8 +17,8 @@
  */
 
 #include <sys/types.h>
-#include <sys/tree.h>
-#include <sys/queue.h>
+
+
 #include <limits.h>
 #include "imsg.h"
 

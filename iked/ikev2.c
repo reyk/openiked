@@ -17,7 +17,7 @@
  */
 
 #include <sys/param.h>	/* roundup */
-#include <sys/queue.h>
+
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>

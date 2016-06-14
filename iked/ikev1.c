@@ -22,7 +22,7 @@
  * XXX or remove this file and ikev1 from the iked tree.
  */
 
-#include <sys/queue.h>
+
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
