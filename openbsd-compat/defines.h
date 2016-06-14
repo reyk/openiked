@@ -89,26 +89,12 @@ enum
 # ifdef _POSIX_PATH_MAX
 # define PATH_MAX _POSIX_PATH_MAX
 # else
-# define PATH_MAX 64
+# define PATH_MAX 256
 # endif
-#endif
-
-/*
- * Looks like ugly, but MAX_IMSGSIZE equals 16384,
- * and if we don't care it will overflow for some struct
- */
-#if PATH_MAX > 1024
-#  undef    PATH_MAX
-#  define PATH_MAX 1024
 #endif
 
 #ifndef MAXPATHLEN
 #  define MAXPATHLEN PATH_MAX
-#endif
-
-#if MAXPATHLEN > 1024
-#  undef  MAXPATHLEN
-#  define MAXPATHLEN 1024
 #endif
 
 #if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
