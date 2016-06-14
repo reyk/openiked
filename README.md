@@ -56,8 +56,8 @@ also need GNU automake, autoconf (version 2.69 or newer) and libtool.
     - For example, you can run the following when building on Apple OSX
 with MacPorts:
 ```
-    ./configure --with-ssl-dir=/opt/local/
-        --with-libevent-dir=/opt/local/lib/libevent1/
+    ./configure --with-ssl-dir=/opt/local/ \
+        --with-libevent-dir=/opt/local/lib/libevent1/ \
         --prefix=/opt/local/
 ```
 5. Type `make` to build all parts of OpenIKED including iked and ikectl.
