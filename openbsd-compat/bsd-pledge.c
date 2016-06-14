@@ -15,6 +15,11 @@
  */
 
 #if !defined(HAVE_PLEDGE)
+#include <unistd.h>
+
+extern void log_debug(const char *, ...)
+    __attribute__((__format__ (printf, 1, 2)));
+
 /*
  * XXX Implement pledge using other sandbox methods?
  */
@@ -27,5 +32,7 @@ pledge(const char *promises, const char *paths[])
 	for (i = 0; paths != NULL && paths[i] != NULL; i++)
 		log_debug("%s: pid %d paths[%d]: %s",
 		    __func__, getpid(), i, paths[i]);
+
+	return (0);
 }
 #endif
