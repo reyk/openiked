@@ -1,4 +1,4 @@
-/*	$OpenBSD: parse.y,v 1.48 2015/07/03 17:46:52 mikeb Exp $	*/
+/*	$OpenBSD: parse.y,v 1.54 2015/12/09 21:41:49 naddy Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -96,11 +96,11 @@ static char		*ocsp_url = NULL;
 
 struct ipsec_xf {
 	const char	*name;
-	u_int		 id;
-	u_int		 length;
-	u_int		 keylength;
-	u_int		 nonce;
-	u_int		 noauth;
+	unsigned int	 id;
+	unsigned int	 length;
+	unsigned int	 keylength;
+	unsigned int	 nonce;
+	unsigned int	 noauth;
 };
 
 struct ipsec_transforms {
@@ -113,7 +113,7 @@ struct ipsec_transforms {
 
 struct ipsec_mode {
 	struct ipsec_transforms	*xfs;
-	u_int8_t		 ike_exch;
+	uint8_t			 ike_exch;
 };
 
 struct iked_transform ikev2_default_ike_transforms[] = {
@@ -123,10 +123,8 @@ struct iked_transform ikev2_default_ike_transforms[] = {
 	{ IKEV2_XFORMTYPE_ENCR, IKEV2_XFORMENCR_3DES },
 	{ IKEV2_XFORMTYPE_PRF,	IKEV2_XFORMPRF_HMAC_SHA2_256 },
 	{ IKEV2_XFORMTYPE_PRF,	IKEV2_XFORMPRF_HMAC_SHA1 },
-	{ IKEV2_XFORMTYPE_PRF,	IKEV2_XFORMPRF_HMAC_MD5 },
 	{ IKEV2_XFORMTYPE_INTEGR, IKEV2_XFORMAUTH_HMAC_SHA2_256_128 },
 	{ IKEV2_XFORMTYPE_INTEGR, IKEV2_XFORMAUTH_HMAC_SHA1_96 },
-	{ IKEV2_XFORMTYPE_INTEGR, IKEV2_XFORMAUTH_HMAC_MD5_96 },
 	{ IKEV2_XFORMTYPE_DH,	IKEV2_XFORMDH_MODP_2048_256 },
 	{ IKEV2_XFORMTYPE_DH,	IKEV2_XFORMDH_MODP_2048 },
 	{ IKEV2_XFORMTYPE_DH,	IKEV2_XFORMDH_MODP_1536 },
@@ -179,7 +177,6 @@ const struct ipsec_xf ikeencxfs[] = {
 };
 
 const struct ipsec_xf ipsecencxfs[] = {
-	{ "des",		IKEV2_XFORMENCR_DES,		8 },
 	{ "3des",		IKEV2_XFORMENCR_3DES,		24 },
 	{ "3des-cbc",		IKEV2_XFORMENCR_3DES,		24 },
 	{ "aes-128",		IKEV2_XFORMENCR_AES_CBC,	16, 16 },
@@ -196,6 +193,8 @@ const struct ipsec_xf ipsecencxfs[] = {
 	{ "aes-256-gmac",	IKEV2_XFORMENCR_NULL_AES_GMAC,	32, 32, 4, 1 },
 	{ "blowfish",		IKEV2_XFORMENCR_BLOWFISH,	20, 20 },
 	{ "cast",		IKEV2_XFORMENCR_CAST,		16, 16 },
+	{ "chacha20-poly1305",	IKEV2_XFORMENCR_CHACHA20_POLY1305,
+								32, 32, 4, 1 },
 	{ "null",		IKEV2_XFORMENCR_NULL,		0, 0 },
 	{ NULL }
 };
@@ -254,7 +253,7 @@ const struct ipsec_xf methodxfs[] = {
 	{ "dss",		IKEV2_AUTH_DSS_SIG },
 	{ "ecdsa-256",		IKEV2_AUTH_ECDSA_256 },
 	{ "ecdsa-384",		IKEV2_AUTH_ECDSA_384 },
-	{ "ecdsa-512",		IKEV2_AUTH_ECDSA_512 },
+	{ "ecdsa-521",		IKEV2_AUTH_ECDSA_521 },
 	{ NULL }
 };
 
@@ -288,11 +287,11 @@ const struct iked_lifetime deflifetime = {
 
 struct ipsec_addr_wrap {
 	struct sockaddr_storage	 address;
-	u_int8_t		 mask;
+	uint8_t			 mask;
 	int			 netaddress;
 	sa_family_t		 af;
-	u_int			 type;
-	u_int			 action;
+	unsigned int		 type;
+	unsigned int		 action;
 	char			*name;
 	struct ipsec_addr_wrap	*next;
 	struct ipsec_addr_wrap	*tail;
@@ -302,13 +301,13 @@ struct ipsec_addr_wrap {
 struct ipsec_hosts {
 	struct ipsec_addr_wrap	*src;
 	struct ipsec_addr_wrap	*dst;
-	u_int16_t		 sport;
-	u_int16_t		 dport;
+	uint16_t		 sport;
+	uint16_t		 dport;
 };
 
 struct ipsec_filters {
-	char	*tag;
-	u_int	 tap;
+	char			*tag;
+	unsigned int		 tap;
 };
 
 struct ipsec_addr_wrap	*host(const char *);
@@ -321,23 +320,25 @@ void			 ifa_load(void);
 int			 ifa_exists(const char *);
 struct ipsec_addr_wrap	*ifa_lookup(const char *ifa_name);
 struct ipsec_addr_wrap	*ifa_grouplookup(const char *);
-void			 set_ipmask(struct ipsec_addr_wrap *, u_int8_t);
-const struct ipsec_xf	*parse_xf(const char *, u_int, const struct ipsec_xf *);
-const char		*print_xf(u_int, u_int, const struct ipsec_xf *);
-void			 copy_transforms(u_int, const struct ipsec_xf *,
+void			 set_ipmask(struct ipsec_addr_wrap *, uint8_t);
+const struct ipsec_xf	*parse_xf(const char *, unsigned int,
+			    const struct ipsec_xf *);
+const char		*print_xf(unsigned int, unsigned int,
+			    const struct ipsec_xf *);
+void			 copy_transforms(unsigned int, const struct ipsec_xf *,
 			    const struct ipsec_xf *,
 			    struct iked_transform *, size_t,
-			    u_int *, struct iked_transform *, size_t);
-int			 create_ike(char *, int, u_int8_t, struct ipsec_hosts *,
-			     struct ipsec_hosts *, struct ipsec_mode *,
-			     struct ipsec_mode *, u_int8_t,
-			     u_int8_t, char *, char *,
-			     u_int32_t, struct iked_lifetime *,
-			     struct iked_auth *, struct ipsec_filters *,
-			     struct ipsec_addr_wrap *);
+			    unsigned int *, struct iked_transform *, size_t);
+int			 create_ike(char *, int, uint8_t, struct ipsec_hosts *,
+			    struct ipsec_hosts *, struct ipsec_mode *,
+			    struct ipsec_mode *, uint8_t,
+			    uint8_t, char *, char *,
+			    uint32_t, struct iked_lifetime *,
+			    struct iked_auth *, struct ipsec_filters *,
+			    struct ipsec_addr_wrap *);
 int			 create_user(const char *, const char *);
 int			 get_id_type(char *);
-u_int8_t		 x2i(unsigned char *);
+uint8_t			 x2i(unsigned char *);
 int			 parsekey(unsigned char *, size_t, struct iked_auth *);
 int			 parsekeyfile(char *, struct iked_auth *);
 
@@ -347,12 +348,12 @@ struct ipsec_filters *ipsec_filters;
 typedef struct {
 	union {
 		int64_t			 number;
-		u_int8_t		 ikemode;
-		u_int8_t		 dir;
-		u_int8_t		 satype;
-		u_int8_t		 proto;
+		uint8_t			 ikemode;
+		uint8_t			 dir;
+		uint8_t			 satype;
+		uint8_t			 proto;
 		char			*string;
-		u_int16_t		 port;
+		uint16_t		 port;
 		struct ipsec_hosts	*hosts;
 		struct ipsec_hosts	 peers;
 		struct ipsec_addr_wrap	*anyhost;
@@ -363,7 +364,7 @@ typedef struct {
 			char		*dstid;
 		} ids;
 		char			*id;
-		u_int8_t		 type;
+		uint8_t			 type;
 		struct iked_lifetime	 lifetime;
 		struct iked_auth	 ikeauth;
 		struct iked_auth	 ikekey;
@@ -457,9 +458,11 @@ user		: USER STRING STRING		{
 		;
 
 ikev2rule	: IKEV2 name ikeflags satype af proto hosts_list peers
-		    ike_sa child_sa ids ikelifetime lifetime ikeauth ikecfg filters {
+		    ike_sa child_sa ids ikelifetime lifetime ikeauth ikecfg
+		    filters {
 			if (create_ike($2, $5, $6, $7, &$8, $9, $10, $4, $3,
-			    $11.srcid, $11.dstid, $12, &$13, &$14, $16, $15) == -1)
+			    $11.srcid, $11.dstid, $12, &$13, &$14,
+			    $16, $15) == -1)
 				YYERROR;
 		}
 		;
@@ -654,7 +657,7 @@ host_spec	: STRING			{
 		| STRING '/' NUMBER		{
 			char	*buf;
 
-			if (asprintf(&buf, "%s/%lld", $1, (long long)$3) == -1)
+			if (asprintf(&buf, "%s/%lld", $1, $3) == -1)
 				err(1, "host: asprintf");
 			free($1);
 			if (($$ = host(buf)) == NULL)	{
@@ -667,7 +670,7 @@ host_spec	: STRING			{
 		;
 
 host		: host_spec			{ $$ = $1; }
-		| host_spec '(' host_spec ')'	{
+		| host_spec '(' host_spec ')'   {
 			if (($1->af != AF_UNSPEC) && ($3->af != AF_UNSPEC) &&
 			    ($3->af != $1->af)) {
 				yyerror("Flow NAT address family mismatch");
@@ -809,19 +812,17 @@ ipcomp		: /* empty */			{ $$ = 0; }
 ikeauth		: /* empty */			{
 			$$.auth_method = IKEV2_AUTH_RSA_SIG;
 			$$.auth_length = 0;
-			$$.auth_eap = 0;
 		}
 		| RSA				{
 			$$.auth_method = IKEV2_AUTH_RSA_SIG;
 			$$.auth_length = 0;
-			$$.auth_eap = 0;
 		}
 		| PSK keyspec			{
 			memcpy(&$$, &$2, sizeof($$));
 			$$.auth_method = IKEV2_AUTH_SHARED_KEY_MIC;
 		}
 		| EAP STRING			{
-			u_int	 i;
+			unsigned int i;
 
 			for (i = 0; i < strlen($2); i++)
 				if ($2[i] == '-')
@@ -844,10 +845,10 @@ byte_spec	: NUMBER			{
 			$$ = $1;
 		}
 		| STRING			{
-			uintmax_t	 bytes = 0;
+			uint64_t	 bytes = 0;
 			char		 unit = 0;
 
-			if (sscanf($1, "%ju%c", &bytes, &unit) != 2) {
+			if (sscanf($1, "%llu%c", &bytes, &unit) != 2) {
 				yyerror("invalid byte specification: %s", $1);
 				YYERROR;
 			}
@@ -873,10 +874,10 @@ time_spec	: NUMBER			{
 			$$ = $1;
 		}
 		| STRING			{
-			uintmax_t	 seconds = 0;
+			uint64_t	 seconds = 0;
 			char		 unit = 0;
 
-			if (sscanf($1, "%ju%c", &seconds, &unit) != 2) {
+			if (sscanf($1, "%llu%c", &seconds, &unit) != 2) {
 				yyerror("invalid time specification: %s", $1);
 				YYERROR;
 			}
@@ -916,14 +917,14 @@ ikelifetime	: /* empty */				{
 		}
 
 keyspec		: STRING			{
-			char	*hex;
+			uint8_t		*hex;
 
 			bzero(&$$, sizeof($$));
 
 			hex = $1;
 			if (strncmp(hex, "0x", 2) == 0) {
 				hex += 2;
-				if (parsekey((u_char *)hex, strlen(hex), &$$)) {
+				if (parsekey(hex, strlen(hex), &$$) != 0) {
 					free($1);
 					YYERROR;
 				}
@@ -933,7 +934,7 @@ keyspec		: STRING			{
 					free($1);
 					YYERROR;
 				}
-				strlcpy((char *)$$.auth_data, $1,
+				strlcpy($$.auth_data, $1,
 				    sizeof($$.auth_data));
 				$$.auth_length = strlen($1);
 			}
@@ -1140,10 +1141,10 @@ lookup(char *s)
 
 #define MAXPUSHBACK	128
 
-u_char	*parsebuf;
-int	 parseindex;
-u_char	 pushback_buffer[MAXPUSHBACK];
-int	 pushback_index = 0;
+unsigned char	*parsebuf;
+int		 parseindex;
+unsigned char	 pushback_buffer[MAXPUSHBACK];
+int		 pushback_index = 0;
 
 int
 lgetc(int quotec)
@@ -1166,7 +1167,8 @@ lgetc(int quotec)
 
 	if (quotec) {
 		if ((c = getc(file->stream)) == EOF) {
-			yyerror("reached end of file while parsing quoted string");
+			yyerror("reached end of file while parsing "
+			    "quoted string");
 			if (popfile() == EOF)
 				return (EOF);
 			return (quotec);
@@ -1234,10 +1236,10 @@ findeol(void)
 int
 yylex(void)
 {
-	char	 buf[8096];
-	char	*p, *val;
-	int	 quotec, next, c;
-	int	 token;
+	unsigned char	 buf[8096];
+	unsigned char	*p, *val;
+	int		 quotec, next, c;
+	int		 token;
 
 top:
 	p = buf;
@@ -1270,7 +1272,7 @@ top:
 			yyerror("macro '%s' not defined", buf);
 			return (findeol());
 		}
-		parsebuf = (u_char *)val;
+		parsebuf = val;
 		parseindex = 0;
 		goto top;
 	}
@@ -1576,7 +1578,7 @@ symget(const char *nam)
 	return (NULL);
 }
 
-u_int8_t
+uint8_t
 x2i(unsigned char *s)
 {
 	char	ss[3];
@@ -1589,13 +1591,13 @@ x2i(unsigned char *s)
 		yyerror("keys need to be specified in hex digits");
 		return (-1);
 	}
-	return ((u_int8_t)strtoul(ss, NULL, 16));
+	return ((uint8_t)strtoul(ss, NULL, 16));
 }
 
 int
 parsekey(unsigned char *hexkey, size_t len, struct iked_auth *auth)
 {
-	u_int		  i;
+	unsigned int	  i;
 
 	bzero(auth, sizeof(*auth));
 	if ((len / 2) > sizeof(auth->auth_data))
@@ -2054,7 +2056,7 @@ ifa_lookup(const char *ifa_name)
 {
 	struct ipsec_addr_wrap	*p = NULL, *h = NULL, *n = NULL;
 	struct sockaddr_in6	*in6;
-	u_int8_t		*s6;
+	uint8_t			*s6;
 
 	if (iftab == NULL)
 		ifa_load();
@@ -2079,11 +2081,11 @@ ifa_lookup(const char *ifa_name)
 			break;
 		case AF_INET6:
 			in6 = (struct sockaddr_in6 *)&n->address;
-			s6 = (u_int8_t *)&in6->sin6_addr.s6_addr;
+			s6 = (uint8_t *)&in6->sin6_addr.s6_addr;
 
 			/* route/show.c and bgpd/util.c give KAME credit */
 			if (IN6_IS_ADDR_LINKLOCAL(&in6->sin6_addr)) {
-				u_int16_t	 tmp16;
+				uint16_t	 tmp16;
 
 				/* for now we can not handle link local,
 				 * therefore bail for now
@@ -2116,13 +2118,13 @@ ifa_lookup(const char *ifa_name)
 }
 
 void
-set_ipmask(struct ipsec_addr_wrap *address, u_int8_t b)
+set_ipmask(struct ipsec_addr_wrap *address, uint8_t b)
 {
 	address->mask = b;
 }
 
 const struct ipsec_xf *
-parse_xf(const char *name, u_int length, const struct ipsec_xf xfs[])
+parse_xf(const char *name, unsigned int length, const struct ipsec_xf xfs[])
 {
 	int		i;
 
@@ -2136,7 +2138,7 @@ parse_xf(const char *name, u_int length, const struct ipsec_xf xfs[])
 }
 
 const char *
-print_xf(u_int id, u_int length, const struct ipsec_xf xfs[])
+print_xf(unsigned int id, unsigned int length, const struct ipsec_xf xfs[])
 {
 	int		i;
 
@@ -2150,7 +2152,7 @@ print_xf(u_int id, u_int length, const struct ipsec_xf xfs[])
 }
 
 size_t
-keylength_xf(u_int saproto, u_int type, u_int id)
+keylength_xf(unsigned int saproto, unsigned int type, unsigned int id)
 {
 	int			 i;
 	const struct ipsec_xf	*xfs;
@@ -2177,7 +2179,7 @@ keylength_xf(u_int saproto, u_int type, u_int id)
 }
 
 size_t
-noncelength_xf(u_int type, u_int id)
+noncelength_xf(unsigned int type, unsigned int id)
 {
 	const struct ipsec_xf	*xfs = ipsecencxfs;
 	int			 i;
@@ -2204,7 +2206,7 @@ print_policy(struct iked_policy *pol)
 	struct iked_transform	*xform;
 	struct iked_flow	*flow;
 	struct iked_cfg		*cfg;
-	u_int			 i, j;
+	unsigned int		 i, j;
 	const struct ipsec_xf	*xfs = NULL;
 
 	print_verbose("ikev2");
@@ -2336,8 +2338,7 @@ print_policy(struct iked_policy *pol)
 		print_verbose(" ikelifetime %u", pol->pol_rekey);
 
 	print_verbose(" lifetime %llu bytes %llu",
-	    (unsigned long long)pol->pol_lifetime.lt_seconds,
-	    (unsigned long long)pol->pol_lifetime.lt_bytes);
+	    pol->pol_lifetime.lt_seconds, pol->pol_lifetime.lt_bytes);
 
 	if (pol->pol_auth.auth_method == IKEV2_AUTH_SHARED_KEY_MIC) {
 			print_verbose(" psk 0x");
@@ -2371,12 +2372,12 @@ print_policy(struct iked_policy *pol)
 }
 
 void
-copy_transforms(u_int type, const struct ipsec_xf *xf,
+copy_transforms(unsigned int type, const struct ipsec_xf *xf,
     const struct ipsec_xf *xfs,
     struct iked_transform *dst, size_t ndst,
-    u_int *n, struct iked_transform *src, size_t nsrc)
+    unsigned int *n, struct iked_transform *src, size_t nsrc)
 {
-	u_int			 i;
+	unsigned int		 i;
 	struct iked_transform	*a, *b;
 
 	if (xf != NULL) {
@@ -2403,23 +2404,23 @@ copy_transforms(u_int type, const struct ipsec_xf *xf,
 }
 
 int
-create_ike(char *name, int af, u_int8_t ipproto, struct ipsec_hosts *hosts,
+create_ike(char *name, int af, uint8_t ipproto, struct ipsec_hosts *hosts,
     struct ipsec_hosts *peers, struct ipsec_mode *ike_sa,
-    struct ipsec_mode *ipsec_sa, u_int8_t saproto,
-    u_int8_t flags, char *srcid, char *dstid,
-    u_int32_t ikelifetime, struct iked_lifetime *lt,
+    struct ipsec_mode *ipsec_sa, uint8_t saproto,
+    uint8_t flags, char *srcid, char *dstid,
+    uint32_t ikelifetime, struct iked_lifetime *lt,
     struct iked_auth *authtype, struct ipsec_filters *filter,
     struct ipsec_addr_wrap *ikecfg)
 {
 	char			 idstr[IKED_ID_SIZE];
-	u_int			 idtype = IKEV2_ID_NONE;
+	unsigned int		 idtype = IKEV2_ID_NONE;
 	struct ipsec_addr_wrap	*ipa, *ipb;
 	struct iked_policy	 pol;
 	struct iked_proposal	 prop[2];
-	u_int			 j;
+	unsigned int		 j;
 	struct iked_transform	 ikexforms[64], ipsecxforms[64];
 	struct iked_flow	 flows[64];
-	static u_int		 policy_id = 0;
+	static unsigned int	 policy_id = 0;
 	struct iked_cfg		*cfg;
 
 	bzero(&pol, sizeof(pol));

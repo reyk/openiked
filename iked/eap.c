@@ -1,4 +1,4 @@
-/*	$OpenBSD: eap.c,v 1.13 2015/02/06 10:39:01 deraadt Exp $	*/
+/*	$OpenBSD: eap.c,v 1.14 2015/08/21 11:59:27 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -66,9 +66,9 @@ eap_identity_request(struct ibuf *e)
 char *
 eap_identity_response(struct eap_message *eap)
 {
-	size_t				 len;
-	char				*str;
-	u_int8_t			*ptr = (u_int8_t *)eap;
+	size_t			 len;
+	char			*str;
+	uint8_t			*ptr = (uint8_t *)eap;
 
 	len = betoh16(eap->eap_length) - sizeof(*eap);
 	ptr += sizeof(*eap);
@@ -172,11 +172,11 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 	struct eap_mschap_peer		*msp;
 	struct eap_mschap		*ms;
 	struct eap_mschap_success	*mss;
-	u_int8_t			*ptr, *pass;
+	uint8_t				*ptr, *pass;
 	size_t				 len, passlen;
 	char				*name, *msg;
-	u_int8_t			 ntresponse[EAP_MSCHAP_NTRESPONSE_SZ];
-	u_int8_t			 successmsg[EAP_MSCHAP_SUCCESS_SZ];
+	uint8_t				 ntresponse[EAP_MSCHAP_NTRESPONSE_SZ];
+	uint8_t				 successmsg[EAP_MSCHAP_SUCCESS_SZ];
 	struct ibuf			*eapmsg = NULL;
 	int				 ret = -1;
 
@@ -203,7 +203,7 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 	}
 
 	ms = (struct eap_mschap *)(eap + 1);
-	ptr = (u_int8_t *)(eap + 1);
+	ptr = (uint8_t *)(eap + 1);
 
 	switch (ms->ms_opcode) {
 	case EAP_MSOPCODE_RESPONSE:
@@ -235,8 +235,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 
 		msp = &msr->msr_response.resp_peer;
 		mschap_nt_response(ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, (u_char *)usr->usr_name,
-		    strlen(usr->usr_name), pass, passlen, ntresponse);
+		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
+		    pass, passlen, ntresponse);
 
 		if (memcmp(ntresponse, msp->msp_ntresponse,
 		    sizeof(ntresponse)) != 0) {
@@ -251,8 +251,8 @@ eap_mschap(struct iked *env, struct iked_sa *sa, struct eap_message *eap)
 		bzero(&successmsg, sizeof(successmsg));
 		mschap_auth_response(pass, passlen,
 		    ntresponse, ibuf_data(sa->sa_eap.id_buf),
-		    msp->msp_challenge, (u_char *)usr->usr_name,
-		    strlen(usr->usr_name), successmsg);
+		    msp->msp_challenge, usr->usr_name, strlen(usr->usr_name),
+		    successmsg);
 		if ((sa->sa_eapmsk = ibuf_new(NULL, MSCHAP_MSK_SZ)) == NULL) {
 			log_debug("%s: failed to get MSK", __func__);
 			free(pass);
@@ -331,7 +331,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 	struct eap_header		*hdr = data;
 	struct eap_message		*eap = data;
 	size_t				 len;
-	u_int8_t			*ptr;
+	uint8_t				*ptr;
 	struct eap_mschap		*ms;
 	struct eap_mschap_challenge	*msc;
 	struct eap_mschap_response	*msr;
@@ -341,7 +341,7 @@ eap_parse(struct iked *env, struct iked_sa *sa, void *data, int response)
 
 	/* length is already verified by the caller */
 	len = betoh16(hdr->eap_length);
-	ptr = (u_int8_t *)(eap + 1);
+	ptr = (uint8_t *)(eap + 1);
 
 	switch (hdr->eap_code) {
 	case EAP_CODE_REQUEST:

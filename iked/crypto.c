@@ -1,4 +1,4 @@
-/*	$OpenBSD: crypto.c,v 1.16 2015/03/26 19:52:35 markus Exp $	*/
+/*	$OpenBSD: crypto.c,v 1.19 2015/10/31 19:28:19 naddy Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -40,35 +40,38 @@
 #include "ikev2.h"
 
 /* RFC 7427, A.1 */
-static const u_int8_t sha256WithRSAEncryption[] = {
+static const uint8_t sha256WithRSAEncryption[] = {
 	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
 	0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00
 };
-static const u_int8_t sha384WithRSAEncryption[] = {
+static const uint8_t sha384WithRSAEncryption[] = {
 	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
 	0xf7, 0x0d, 0x01, 0x01, 0x0c, 0x05, 0x00
 };
-static const u_int8_t sha512WithRSAEncryption[] = {
+static const uint8_t sha512WithRSAEncryption[] = {
 	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
 	0xf7, 0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00
 };
 
 struct {
-	u_int8_t	 sc_len;
-	const u_int8_t	*sc_oid;
+	uint8_t		 sc_len;
+	const uint8_t	*sc_oid;
 	const EVP_MD	*(*sc_md)(void);
 } schemes[] = {
-	{ sizeof(sha256WithRSAEncryption), sha256WithRSAEncryption, EVP_sha256 },
-	{ sizeof(sha384WithRSAEncryption), sha384WithRSAEncryption, EVP_sha384 },
-	{ sizeof(sha512WithRSAEncryption), sha512WithRSAEncryption, EVP_sha512 },
+	{ sizeof(sha256WithRSAEncryption),
+	    sha256WithRSAEncryption, EVP_sha256 },
+	{ sizeof(sha384WithRSAEncryption),
+	    sha384WithRSAEncryption, EVP_sha384 },
+	{ sizeof(sha512WithRSAEncryption),
+	    sha512WithRSAEncryption, EVP_sha512 },
 };
 
-int	_dsa_verify_init(struct iked_dsa *, const u_int8_t *, size_t);
-size_t	_dsa_verify_offset(struct iked_dsa *, u_int8_t *);
-int	_dsa_sign_encode(struct iked_dsa *, u_int8_t *, size_t *);
+int	_dsa_verify_init(struct iked_dsa *, const uint8_t *, size_t);
+size_t	_dsa_verify_offset(struct iked_dsa *, uint8_t *);
+int	_dsa_sign_encode(struct iked_dsa *, uint8_t *, size_t *);
 
 struct iked_hash *
-hash_new(u_int8_t type, u_int16_t id)
+hash_new(uint8_t type, uint16_t id)
 {
 	struct iked_hash	*hash;
 	const EVP_MD		*md = NULL;
@@ -226,7 +229,7 @@ hash_update(struct iked_hash *hash, void *buf, size_t len)
 void
 hash_final(struct iked_hash *hash, void *buf, size_t *len)
 {
-	u_int length = 0;
+	unsigned int	 length = 0;
 
 	HMAC_Final(hash->hash_ctx, buf, &length);
 	*len = (size_t)length;
@@ -251,7 +254,7 @@ hash_keylength(struct iked_hash *hash)
 }
 
 struct iked_cipher *
-cipher_new(u_int8_t type, u_int16_t id, u_int16_t id_length)
+cipher_new(uint8_t type, uint16_t id, uint16_t id_length)
 {
 	struct iked_cipher	*encr;
 	const EVP_CIPHER	*cipher = NULL;
@@ -463,7 +466,7 @@ cipher_outlength(struct iked_cipher *encr, size_t inlen)
 }
 
 struct iked_dsa *
-dsa_new(u_int16_t id, struct iked_hash *prf, int sign)
+dsa_new(uint16_t id, struct iked_hash *prf, int sign)
 {
 	struct iked_dsa		*dsap = NULL, dsa;
 
@@ -495,7 +498,7 @@ dsa_new(u_int16_t id, struct iked_hash *prf, int sign)
 	case IKEV2_AUTH_ECDSA_384:
 		dsa.dsa_priv = EVP_sha384();
 		break;
-	case IKEV2_AUTH_ECDSA_512:
+	case IKEV2_AUTH_ECDSA_521:
 		dsa.dsa_priv = EVP_sha512();
 		break;
 	default:
@@ -533,13 +536,13 @@ dsa_new(u_int16_t id, struct iked_hash *prf, int sign)
 }
 
 struct iked_dsa *
-dsa_sign_new(u_int16_t id, struct iked_hash *prf)
+dsa_sign_new(uint16_t id, struct iked_hash *prf)
 {
 	return (dsa_new(id, prf, 1));
 }
 
 struct iked_dsa *
-dsa_verify_new(u_int16_t id, struct iked_hash *prf)
+dsa_verify_new(uint16_t id, struct iked_hash *prf)
 {
 	return (dsa_new(id, prf, 0));
 }
@@ -565,7 +568,7 @@ dsa_free(struct iked_dsa *dsa)
 }
 
 struct ibuf *
-dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
+dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, uint8_t type)
 {
 	BIO		*rawcert = NULL;
 	X509		*cert = NULL;
@@ -637,9 +640,9 @@ dsa_setkey(struct iked_dsa *dsa, void *key, size_t keylen, u_int8_t type)
 }
 
 int
-_dsa_verify_init(struct iked_dsa *dsa, const u_int8_t *sig, size_t len)
+_dsa_verify_init(struct iked_dsa *dsa, const uint8_t *sig, size_t len)
 {
-	u_int8_t		 oidlen;
+	uint8_t			 oidlen;
 	size_t			 i;
 
 	if (dsa->dsa_priv != NULL)
@@ -670,7 +673,8 @@ _dsa_verify_init(struct iked_dsa *dsa, const u_int8_t *sig, size_t len)
 	}
 	for (i = 0; i < nitems(schemes); i++) {
 		if (oidlen == schemes[i].sc_len &&
-		    memcmp(sig + 1, schemes[i].sc_oid, schemes[i].sc_len) == 0) {
+		    memcmp(sig + 1, schemes[i].sc_oid,
+		    schemes[i].sc_len) == 0) {
 			dsa->dsa_priv = (*schemes[i].sc_md)();
 			log_debug("%s: signature scheme %zd selected",
 			    __func__, i);
@@ -684,7 +688,7 @@ _dsa_verify_init(struct iked_dsa *dsa, const u_int8_t *sig, size_t len)
 int
 dsa_init(struct iked_dsa *dsa, const void *buf, size_t len)
 {
-	int	 		 ret;
+	int	 ret;
 
 	if (dsa->dsa_hmac) {
 		if (!HMAC_Init_ex(dsa->dsa_ctx, ibuf_data(dsa->dsa_keydata),
@@ -721,7 +725,7 @@ dsa_update(struct iked_dsa *dsa, const void *buf, size_t len)
 
 /* Prefix signature hash with encoded type */
 int
-_dsa_sign_encode(struct iked_dsa *dsa, u_int8_t *ptr, size_t *offp)
+_dsa_sign_encode(struct iked_dsa *dsa, uint8_t *ptr, size_t *offp)
 {
 	if (offp)
 		*offp = 0;
@@ -754,9 +758,9 @@ dsa_length(struct iked_dsa *dsa)
 ssize_t
 dsa_sign_final(struct iked_dsa *dsa, void *buf, size_t len)
 {
-	u_int		siglen;
-	size_t		off = 0;
-	u_int8_t	*ptr = buf;
+	unsigned int	 siglen;
+	size_t		 off = 0;
+	uint8_t		*ptr = buf;
 
 	if (len < dsa_length(dsa))
 		return (-1);
@@ -777,7 +781,7 @@ dsa_sign_final(struct iked_dsa *dsa, void *buf, size_t len)
 }
 
 size_t
-_dsa_verify_offset(struct iked_dsa *dsa, u_int8_t *ptr)
+_dsa_verify_offset(struct iked_dsa *dsa, uint8_t *ptr)
 {
 	/*
 	 * XXX assumes that _dsa_verify_init() has already checked
@@ -791,9 +795,9 @@ _dsa_verify_offset(struct iked_dsa *dsa, u_int8_t *ptr)
 ssize_t
 dsa_verify_final(struct iked_dsa *dsa, void *buf, size_t len)
 {
-	u_int8_t	 sig[EVP_MAX_MD_SIZE];
-	u_int		 siglen = sizeof(sig);
-	u_int8_t	*ptr = buf;
+	uint8_t		 sig[EVP_MAX_MD_SIZE];
+	unsigned int	 siglen = sizeof(sig);
+	uint8_t		*ptr = buf;
 	size_t		 off = 0;
 
 	if (dsa->dsa_hmac) {

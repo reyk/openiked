@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikectl.c,v 1.19 2015/01/16 06:40:17 deraadt Exp $	*/
+/*	$OpenBSD: ikectl.c,v 1.23 2015/12/05 13:11:18 claudio Exp $	*/
 
 /*
  * Copyright (c) 2007-2013 Reyk Floeter <reyk@openbsd.org>
@@ -44,7 +44,7 @@ struct imsgname {
 	void (*func)(struct imsg *);
 };
 
-struct imsgname *monitor_lookup(u_int8_t);
+struct imsgname *monitor_lookup(uint8_t);
 void		 monitor_id(struct imsg *);
 int		 monitor(struct imsg *);
 
@@ -113,6 +113,7 @@ ca_opt(struct parse_result *res)
 	case CA_CERT_CREATE:
 	case CA_SERVER:
 	case CA_CLIENT:
+	case CA_OCSP:
 		ca_certificate(ca, res->host, res->htype, res->action);
 		break;
 	case CA_CERT_DELETE:
@@ -193,6 +194,7 @@ main(int argc, char *argv[])
 	case CA_CERT_CREATE:
 	case CA_CLIENT:
 	case CA_SERVER:
+	case CA_OCSP:
 	case CA_CERT_DELETE:
 	case CA_CERT_INSTALL:
 	case CA_CERT_EXPORT:
@@ -203,6 +205,9 @@ main(int argc, char *argv[])
 	case CA_KEY_DELETE:
 	case CA_KEY_INSTALL:
 	case CA_KEY_IMPORT:
+		if (pledge("stdio proc exec rpath wpath cpath fattr tty", NULL)
+		    == -1)
+			err(1, "pledge");
 		ca_opt(res);
 		break;
 	case NONE:
@@ -232,6 +237,9 @@ main(int argc, char *argv[])
 		}
 		err(1, "connect: %s", sock);
 	}
+
+	if (pledge("stdio", NULL) == -1)
+		err(1, "pledge");
 
 	if (res->ibuf != NULL)
 		ibuf = res->ibuf;
@@ -316,7 +324,7 @@ main(int argc, char *argv[])
 			err(1, "write error");
 
 	while (!done) {
-		if ((n = imsg_read(ibuf)) == -1)
+		if ((n = imsg_read(ibuf)) == -1 && errno != EAGAIN)
 			errx(1, "imsg_read error");
 		if (n == 0)
 			errx(1, "pipe closed");
@@ -343,7 +351,7 @@ main(int argc, char *argv[])
 }
 
 struct imsgname *
-monitor_lookup(u_int8_t type)
+monitor_lookup(uint8_t type)
 {
 	int i;
 

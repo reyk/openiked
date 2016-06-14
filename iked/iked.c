@@ -1,4 +1,4 @@
-/*	$OpenBSD: iked.c,v 1.24 2015/06/03 02:24:36 millert Exp $	*/
+/*	$OpenBSD: iked.c,v 1.30 2015/12/07 12:46:37 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -27,6 +27,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <signal.h>
+#include <syslog.h>
 #include <errno.h>
 #include <err.h>
 #include <pwd.h>
@@ -39,14 +40,14 @@ __dead void usage(void);
 
 void	 parent_shutdown(struct iked *);
 void	 parent_sig_handler(int, short, void *);
-int	 parent_dispatch_ikev1(int, struct privsep_proc *, struct imsg *);
-int	 parent_dispatch_ikev2(int, struct privsep_proc *, struct imsg *);
 int	 parent_dispatch_ca(int, struct privsep_proc *, struct imsg *);
+int	 parent_dispatch_control(int, struct privsep_proc *, struct imsg *);
 int	 parent_configure(struct iked *);
 
 static struct privsep_proc procs[] = {
-	{ "ikev2",	PROC_IKEV2, parent_dispatch_ikev2, ikev2 },
-	{ "ca",		PROC_CERT, parent_dispatch_ca, caproc, IKED_CA }
+	{ "ca",		PROC_CERT,	parent_dispatch_ca, caproc, IKED_CA },
+	{ "control",	PROC_CONTROL,	parent_dispatch_control, control },
+	{ "ikev2",	PROC_IKEV2,	NULL, ikev2 }
 };
 
 __dead void
@@ -69,7 +70,7 @@ main(int argc, char *argv[])
 	struct iked	*env = NULL;
 	struct privsep	*ps;
 
-	log_init(1);
+	log_init(1, LOG_DAEMON);
 
 	while ((c = getopt(argc, argv, "6dD:nf:vSTt")) != -1) {
 		switch (c) {
@@ -138,7 +139,7 @@ main(int argc, char *argv[])
 	/* Configure the control socket */
 	ps->ps_csock.cs_name = IKED_SOCKET;
 
-	log_init(debug);
+	log_init(debug, LOG_DAEMON);
 	log_verbose(verbose);
 
 	if (!debug && daemon(0, 0) == -1)
@@ -150,6 +151,7 @@ main(int argc, char *argv[])
 	proc_init(ps, procs, nitems(procs));
 
 	setproctitle("parent");
+	log_procinit("parent");
 
 	event_init();
 
@@ -199,7 +201,6 @@ parent_configure(struct iked *env)
 	config_setpfkey(env, PROC_IKEV2);
 
 	/* Now compile the policies and calculate skip steps */
-	config_setcompile(env, PROC_IKEV1);
 	config_setcompile(env, PROC_IKEV2);
 
 	bzero(&ss, sizeof(ss));
@@ -218,6 +219,24 @@ parent_configure(struct iked *env)
 	if ((env->sc_opts & IKED_OPT_NONATT) == 0)
 		config_setsocket(env, &ss, ntohs(IKED_NATT_PORT), PROC_IKEV2);
 
+	/*
+	 * pledge in the parent process:
+	 * It has to run fairly late to allow forking the processes and
+	 * opening the PFKEY socket and the listening UDP sockets (once)
+	 * that need the bypass ioctls that are never allowed by pledge.
+	 *
+	 * Other flags:
+	 * stdio - for malloc and basic I/O including events.
+	 * rpath - for reload to open and read the configuration files.
+	 * proc - run kill to terminate its children safely.
+	 * dns - for reload and ocsp connect.
+	 * inet - for ocsp connect.
+	 * route - for using interfaces in iked.conf (SIOCGIFGMEMB)
+	 * sendfd - for ocsp sockets.
+	 */
+	if (pledge("stdio rpath proc dns inet route sendfd", NULL) == -1)
+		fatal("pledge");
+
 	config_setcoupled(env, env->sc_decoupled ? 0 : 1);
 	config_setmode(env, env->sc_passive ? 1 : 0);
 	config_setocsp(env);
@@ -235,7 +254,6 @@ parent_reload(struct iked *env, int reset, const char *filename)
 	log_debug("%s: level %d config file %s", __func__, reset, filename);
 
 	if (reset == RESET_RELOAD) {
-		config_setreset(env, RESET_POLICY, PROC_IKEV1);
 		config_setreset(env, RESET_POLICY, PROC_IKEV2);
 		config_setreset(env, RESET_CA, PROC_CERT);
 
@@ -245,14 +263,12 @@ parent_reload(struct iked *env, int reset, const char *filename)
 		}
 
 		/* Re-compile policies and skip steps */
-		config_setcompile(env, PROC_IKEV1);
 		config_setcompile(env, PROC_IKEV2);
 
 		config_setcoupled(env, env->sc_decoupled ? 0 : 1);
 		config_setmode(env, env->sc_passive ? 1 : 0);
 		config_setocsp(env);
 	} else {
-		config_setreset(env, reset, PROC_IKEV1);
 		config_setreset(env, reset, PROC_IKEV2);
 		config_setreset(env, reset, PROC_CERT);
 	}
@@ -334,34 +350,28 @@ parent_sig_handler(int sig, short event, void *arg)
 }
 
 int
-parent_dispatch_ikev1(int fd, struct privsep_proc *p, struct imsg *imsg)
-{
-	switch (imsg->hdr.type) {
-	default:
-		break;
-	}
-
-	return (-1);
-}
-
-int
-parent_dispatch_ikev2(int fd, struct privsep_proc *p, struct imsg *imsg)
-{
-	switch (imsg->hdr.type) {
-	default:
-		break;
-	}
-
-	return (-1);
-}
-
-int
 parent_dispatch_ca(int fd, struct privsep_proc *p, struct imsg *imsg)
+{
+	struct iked	*env = p->p_ps->ps_env;
+
+	switch (imsg->hdr.type) {
+	case IMSG_OCSP_FD:
+		ocsp_connect(env);
+		break;
+	default:
+		return (-1);
+	}
+
+	return (0);
+}
+
+int
+parent_dispatch_control(int fd, struct privsep_proc *p, struct imsg *imsg)
 {
 	struct iked	*env = p->p_ps->ps_env;
 	int		 v;
 	char		*str = NULL;
-	u_int		 type = imsg->hdr.type;
+	unsigned int	 type = imsg->hdr.type;
 
 	switch (type) {
 	case IMSG_CTL_RESET:
@@ -373,20 +383,13 @@ parent_dispatch_ca(int fd, struct privsep_proc *p, struct imsg *imsg)
 	case IMSG_CTL_DECOUPLE:
 	case IMSG_CTL_ACTIVE:
 	case IMSG_CTL_PASSIVE:
-		proc_compose_imsg(&env->sc_ps, PROC_IKEV1, -1,
-		    type, -1, NULL, 0);
-		proc_compose_imsg(&env->sc_ps, PROC_IKEV2, -1,
-		    type, -1, NULL, 0);
+		proc_compose(&env->sc_ps, PROC_IKEV2, type, NULL, 0);
 		break;
 	case IMSG_CTL_RELOAD:
 		if (IMSG_DATA_SIZE(imsg) > 0)
 			str = get_string(imsg->data, IMSG_DATA_SIZE(imsg));
 		parent_reload(env, 0, str);
-		if (str != NULL)
-			free(str);
-		break;
-	case IMSG_OCSP_FD:
-		ocsp_connect(env);
+		free(str);
 		break;
 	default:
 		return (-1);

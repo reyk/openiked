@@ -1,4 +1,4 @@
-/*	$OpenBSD: ca.c,v 1.35 2015/03/26 19:52:35 markus Exp $	*/
+/*	$OpenBSD: ca.c,v 1.40 2015/12/07 12:46:37 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -46,15 +46,16 @@
 #include "iked.h"
 #include "ikev2.h"
 
+void	 ca_run(struct privsep *, struct privsep_proc *, void *);
 void	 ca_reset(struct privsep *, struct privsep_proc *, void *);
 int	 ca_reload(struct iked *);
 
 int	 ca_getreq(struct iked *, struct imsg *);
 int	 ca_getcert(struct iked *, struct imsg *);
 int	 ca_getauth(struct iked *, struct imsg *);
-X509	*ca_by_subjectpubkey(X509_STORE *, u_int8_t *, size_t);
+X509	*ca_by_subjectpubkey(X509_STORE *, uint8_t *, size_t);
 X509	*ca_by_issuer(X509_STORE *, X509_NAME *, struct iked_static_id *);
-int	 ca_subjectpubkey_digest(X509 *, u_int8_t *, u_int *);
+int	 ca_subjectpubkey_digest(X509 *, uint8_t *, unsigned int *);
 int	 ca_x509_subject_cmp(X509 *, struct iked_static_id *);
 int	 ca_validate_pubkey(struct iked *, struct iked_static_id *,
 	    void *, size_t);
@@ -67,7 +68,6 @@ int	 ca_x509_subjectaltname(X509 *cert, struct iked_id *);
 int	 ca_privkey_serialize(EVP_PKEY *, struct iked_id *);
 int	 ca_pubkey_serialize(EVP_PKEY *, struct iked_id *);
 int	 ca_dispatch_parent(int, struct privsep_proc *, struct imsg *);
-int	 ca_dispatch_ikev1(int, struct privsep_proc *, struct imsg *);
 int	 ca_dispatch_ikev2(int, struct privsep_proc *, struct imsg *);
 
 static struct privsep_proc procs[] = {
@@ -118,6 +118,21 @@ caproc(struct privsep *ps, struct privsep_proc *p)
 }
 
 void
+ca_run(struct privsep *ps, struct privsep_proc *p, void *arg)
+{
+	/*
+	 * pledge in the ca process:
+	 * stdio - for malloc and basic I/O including events.
+	 * rpath - for certificate files.
+	 * recvfd - for ocsp sockets.
+	 */
+	if (pledge("stdio rpath recvfd", NULL) == -1)
+		fatal("pledge");
+
+	ca_reset(ps, p, arg);
+}
+
+void
 ca_reset(struct privsep *ps, struct privsep_proc *p, void *arg)
 {
 	struct iked	*env = ps->ps_env;
@@ -150,8 +165,8 @@ int
 ca_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 {
 	struct iked		*env = p->p_env;
-	struct ca_store	*store = env->sc_priv;
-	u_int			 mode;
+	struct ca_store		*store = env->sc_priv;
+	unsigned int		 mode;
 
 	switch (imsg->hdr.type) {
 	case IMSG_CTL_RESET:
@@ -173,12 +188,6 @@ ca_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 	}
 
 	return (0);
-}
-
-int
-ca_dispatch_ikev1(int fd, struct privsep_proc *p, struct imsg *imsg)
-{
-	return (-1);
 }
 
 int
@@ -205,7 +214,7 @@ ca_dispatch_ikev2(int fd, struct privsep_proc *p, struct imsg *imsg)
 
 int
 ca_setcert(struct iked *env, struct iked_sahdr *sh, struct iked_id *id,
-    u_int8_t type, u_int8_t *data, size_t len, enum privsep_procid procid)
+    uint8_t type, uint8_t *data, size_t len, enum privsep_procid procid)
 {
 	struct iovec		iov[4];
 	int			iovcnt = 0;
@@ -240,15 +249,14 @@ ca_setcert(struct iked *env, struct iked_sahdr *sh, struct iked_id *id,
 	iov[iovcnt].iov_len = len;
 	iovcnt++;
 
-	if (proc_composev_imsg(&env->sc_ps, procid, -1,
-	    IMSG_CERT, -1, iov, iovcnt) == -1)
+	if (proc_composev(&env->sc_ps, procid, IMSG_CERT, iov, iovcnt) == -1)
 		return (-1);
 	return (0);
 }
 
 int
-ca_setreq(struct iked *env, struct iked_sahdr *sh,
-    struct iked_static_id *localid, u_int8_t type, u_int8_t *data,
+ca_setreq(struct iked *env, struct iked_sa *sa,
+    struct iked_static_id *localid, uint8_t type, uint8_t *data,
     size_t len, enum privsep_procid procid)
 {
 	struct iovec		iov[4];
@@ -272,8 +280,8 @@ ca_setreq(struct iked *env, struct iked_sahdr *sh,
 	iov[iovcnt].iov_len = sizeof(idb);
 	iovcnt++;
 
-	iov[iovcnt].iov_base = sh;
-	iov[iovcnt].iov_len = sizeof(*sh);
+	iov[iovcnt].iov_base = &sa->sa_hdr;
+	iov[iovcnt].iov_len = sizeof(sa->sa_hdr);
 	iovcnt++;
 	iov[iovcnt].iov_base = &type;
 	iov[iovcnt].iov_len = sizeof(type);
@@ -282,9 +290,10 @@ ca_setreq(struct iked *env, struct iked_sahdr *sh,
 	iov[iovcnt].iov_len = len;
 	iovcnt++;
 
-	if (proc_composev_imsg(&env->sc_ps, procid, -1,
-	    IMSG_CERTREQ, -1, iov, iovcnt) == -1)
+	if (proc_composev(&env->sc_ps, procid, IMSG_CERTREQ, iov, iovcnt) == -1)
 		goto done;
+
+	sa_stateflags(sa, IKED_REQ_CERTREQ);
 
 	ret = 0;
  done:
@@ -299,7 +308,7 @@ ca_setauth(struct iked *env, struct iked_sa *sa,
 	struct iovec		 iov[3];
 	int			 iovcnt = 3;
 	struct iked_policy	*policy = sa->sa_policy;
-	u_int8_t		 type = policy->pol_auth.auth_method;
+	uint8_t			 type = policy->pol_auth.auth_method;
 
 	/* switch encoding to IKEV2_AUTH_SIG if SHA2 is supported */
 	if (sa->sa_sigsha2 && type == IKEV2_AUTH_RSA_SIG) {
@@ -325,8 +334,7 @@ ca_setauth(struct iked *env, struct iked_sa *sa,
 		log_debug("%s: auth length %zu", __func__, ibuf_size(authmsg));
 	}
 
-	if (proc_composev_imsg(&env->sc_ps, id, -1,
-	    IMSG_AUTH, -1, iov, iovcnt) == -1)
+	if (proc_composev(&env->sc_ps, id, IMSG_AUTH, iov, iovcnt) == -1)
 		return (-1);
 	return (0);
 }
@@ -335,15 +343,15 @@ int
 ca_getcert(struct iked *env, struct imsg *imsg)
 {
 	struct iked_sahdr	 sh;
-	u_int8_t		 type;
-	u_int8_t		*ptr;
+	uint8_t			 type;
+	uint8_t			*ptr;
 	size_t			 len;
 	struct iked_static_id	 id;
-	u_int			 i;
+	unsigned int		 i;
 	struct iovec		 iov[2];
 	int			 iovcnt = 2, cmd, ret = 0;
 
-	ptr = (u_int8_t *)imsg->data;
+	ptr = (uint8_t *)imsg->data;
 	len = IMSG_DATA_SIZE(imsg);
 	i = sizeof(id) + sizeof(sh) + sizeof(type);
 	if (len <= i)
@@ -353,7 +361,7 @@ ca_getcert(struct iked *env, struct imsg *imsg)
 	if (id.id_type == IKEV2_ID_NONE)
 		return (-1);
 	memcpy(&sh, ptr + sizeof(id), sizeof(sh));
-	memcpy(&type, ptr + sizeof(id) + sizeof(sh), sizeof(u_int8_t));
+	memcpy(&type, ptr + sizeof(id) + sizeof(sh), sizeof(uint8_t));
 
 	ptr += i;
 	len -= i;
@@ -386,8 +394,7 @@ ca_getcert(struct iked *env, struct imsg *imsg)
 	iov[1].iov_base = &type;
 	iov[1].iov_len = sizeof(type);
 
-	if (proc_composev_imsg(&env->sc_ps, PROC_IKEV2, -1,
-	    cmd, -1, iov, iovcnt) == -1)
+	if (proc_composev(&env->sc_ps, PROC_IKEV2, cmd, iov, iovcnt) == -1)
 		return (-1);
 	return (0);
 }
@@ -395,19 +402,19 @@ ca_getcert(struct iked *env, struct imsg *imsg)
 int
 ca_getreq(struct iked *env, struct imsg *imsg)
 {
-	struct ca_store	*store = env->sc_priv;
+	struct ca_store		*store = env->sc_priv;
 	struct iked_sahdr	 sh;
-	u_int8_t		 type;
-	u_int8_t		*ptr;
+	uint8_t			 type;
+	uint8_t			*ptr;
 	size_t			 len;
-	u_int			 i, n;
+	unsigned int		 i, n;
 	X509			*ca = NULL, *cert = NULL;
 	struct ibuf		*buf;
 	struct iked_static_id	 id;
 
-	ptr = (u_int8_t *)imsg->data;
+	ptr = (uint8_t *)imsg->data;
 	len = IMSG_DATA_SIZE(imsg);
-	i = sizeof(id) + sizeof(u_int8_t) + sizeof(sh);
+	i = sizeof(id) + sizeof(uint8_t) + sizeof(sh);
 	if (len < i || ((len - i) % SHA_DIGEST_LENGTH) != 0)
 		return (-1);
 
@@ -415,7 +422,7 @@ ca_getreq(struct iked *env, struct imsg *imsg)
 	if (id.id_type == IKEV2_ID_NONE)
 		return (-1);
 	memcpy(&sh, ptr + sizeof(id), sizeof(sh));
-	memcpy(&type, ptr + sizeof(id) + sizeof(sh), sizeof(u_int8_t));
+	memcpy(&type, ptr + sizeof(id) + sizeof(sh), sizeof(uint8_t));
 
 	switch (type) {
 	case IKEV2_CERT_RSA_KEY:
@@ -469,26 +476,26 @@ ca_getreq(struct iked *env, struct imsg *imsg)
 int
 ca_getauth(struct iked *env, struct imsg *imsg)
 {
-	struct ca_store	*store = env->sc_priv;
+	struct ca_store		*store = env->sc_priv;
 	struct iked_sahdr	 sh;
-	u_int8_t		 method;
-	u_int8_t		*ptr;
+	uint8_t			 method;
+	uint8_t			*ptr;
 	size_t			 len;
-	u_int			 i;
+	unsigned int		 i;
 	int			 ret = -1;
 	struct iked_sa		 sa;
 	struct iked_policy	 policy;
 	struct iked_id		*id;
 	struct ibuf		*authmsg;
 
-	ptr = (u_int8_t *)imsg->data;
+	ptr = (uint8_t *)imsg->data;
 	len = IMSG_DATA_SIZE(imsg);
 	i = sizeof(method) + sizeof(sh);
 	if (len <= i)
 		return (-1);
 
 	memcpy(&sh, ptr, sizeof(sh));
-	memcpy(&method, ptr + sizeof(sh), sizeof(u_int8_t));
+	memcpy(&method, ptr + sizeof(sh), sizeof(uint8_t));
 	if (method == IKEV2_AUTH_SHARED_KEY_MIC)
 		return (-1);
 
@@ -529,7 +536,7 @@ int
 ca_reload(struct iked *env)
 {
 	struct ca_store		*store = env->sc_priv;
-	u_int8_t		 md[EVP_MAX_MD_SIZE];
+	uint8_t			 md[EVP_MAX_MD_SIZE];
 	char			 file[PATH_MAX];
 	struct iovec		 iov[2];
 	struct dirent		*entry;
@@ -537,8 +544,7 @@ ca_reload(struct iked *env)
 	X509_OBJECT		*xo;
 	X509			*x509;
 	DIR			*dir;
-	u_int			 len;
-	int			 i, iovcnt = 0;
+	int			 i, len, iovcnt = 0;
 
 	/*
 	 * Load CAs
@@ -634,8 +640,8 @@ ca_reload(struct iked *env)
 		    ibuf_length(env->sc_certreq) == SHA_DIGEST_LENGTH ?
 		    "" : "s");
 
-		(void)proc_composev_imsg(&env->sc_ps, PROC_IKEV2, -1,
-		    IMSG_CERTREQ, -1, iov, iovcnt);
+		(void)proc_composev(&env->sc_ps, PROC_IKEV2, IMSG_CERTREQ,
+		    iov, iovcnt);
 	}
 
 	/*
@@ -685,21 +691,20 @@ ca_reload(struct iked *env)
 	iov[0].iov_len = sizeof(env->sc_certreqtype);
 	if (iovcnt == 0)
 		iovcnt++;
-	(void)proc_composev_imsg(&env->sc_ps, PROC_IKEV2, -1,
-	    IMSG_CERTREQ, -1, iov, iovcnt);
+	(void)proc_composev(&env->sc_ps, PROC_IKEV2, IMSG_CERTREQ, iov, iovcnt);
 
 	return (0);
 }
 
 X509 *
-ca_by_subjectpubkey(X509_STORE *ctx, u_int8_t *sig, size_t siglen)
+ca_by_subjectpubkey(X509_STORE *ctx, uint8_t *sig, size_t siglen)
 {
 	STACK_OF(X509_OBJECT)	*h;
 	X509_OBJECT		*xo;
 	X509			*ca;
 	int			 i;
-	u_int			 len;
-	u_int8_t		 md[EVP_MAX_MD_SIZE];
+	unsigned int		 len;
+	uint8_t			 md[EVP_MAX_MD_SIZE];
 
 	h = ctx->objs;
 
@@ -758,9 +763,9 @@ ca_by_issuer(X509_STORE *ctx, X509_NAME *subject, struct iked_static_id *id)
 }
 
 int
-ca_subjectpubkey_digest(X509 *x509, u_int8_t *md, u_int *size)
+ca_subjectpubkey_digest(X509 *x509, uint8_t *md, unsigned int *size)
 {
-	u_int8_t	*buf = NULL;
+	uint8_t		*buf = NULL;
 	int		 buflen;
 
 	if (*size < SHA_DIGEST_LENGTH)
@@ -789,7 +794,7 @@ ca_x509_serialize(X509 *x509)
 {
 	long		 len;
 	struct ibuf	*buf;
-	u_int8_t	*d = NULL;
+	uint8_t		*d = NULL;
 	BIO		*out;
 
 	if ((out = BIO_new(BIO_s_mem())) == NULL)
@@ -810,7 +815,7 @@ int
 ca_pubkey_serialize(EVP_PKEY *key, struct iked_id *id)
 {
 	RSA		*rsa = NULL;
-	u_int8_t	*d;
+	uint8_t		*d;
 	int		 len = 0;
 	int		 ret = -1;
 
@@ -854,7 +859,7 @@ int
 ca_privkey_serialize(EVP_PKEY *key, struct iked_id *id)
 {
 	RSA		*rsa = NULL;
-	u_int8_t	*d;
+	uint8_t		*d;
 	int		 len = 0;
 	int		 ret = -1;
 
@@ -895,11 +900,11 @@ ca_privkey_serialize(EVP_PKEY *key, struct iked_id *id)
 }
 
 char *
-ca_asn1_name(u_int8_t *asn1, size_t len)
+ca_asn1_name(uint8_t *asn1, size_t len)
 {
 	X509_NAME	*name = NULL;
 	char		*str = NULL;
-	const u_int8_t	*p;
+	const uint8_t	*p;
 
 	p = asn1;
 	if ((name = d2i_X509_NAME(NULL, &p, len)) == NULL)
@@ -959,8 +964,7 @@ ca_x509_name_unescape(char *src, char *dst, char marker)
 void *
 ca_x509_name_parse(char *subject)
 {
-	u_char		*value = NULL;
-	char		*cp, *type = NULL;
+	char		*cp, *value = NULL, *type = NULL;
 	size_t		 maxlen;
 	X509_NAME	*name = NULL;
 
@@ -990,7 +994,7 @@ ca_x509_name_parse(char *subject)
 			goto err;
 		}
 		/* unescape value, terminated by '/' */
-		cp = ca_x509_name_unescape(cp, (char *)value, '/');
+		cp = ca_x509_name_unescape(cp, value, '/');
 		if (cp == NULL) {
 			log_warnx("%s: could not parse value", __func__);
 			goto err;
@@ -1215,7 +1219,7 @@ int
 ca_x509_subject_cmp(X509 *cert, struct iked_static_id *id)
 {
 	X509_NAME	*subject, *idname = NULL;
-	const u_int8_t	*idptr;
+	const uint8_t	*idptr;
 	size_t		 idlen;
 	int		 ret = -1;
 
@@ -1270,7 +1274,7 @@ int
 ca_x509_subjectaltname(X509 *cert, struct iked_id *id)
 {
 	X509_EXTENSION	*san;
-	u_int8_t	 sanhdr[4], *data;
+	uint8_t		 sanhdr[4], *data;
 	int		 ext, santype, sanlen;
 	char		 idstr[IKED_ID_SIZE];
 
@@ -1290,7 +1294,7 @@ ca_x509_subjectaltname(X509 *cert, struct iked_id *id)
 	}
 
 	/* This is partially based on isakmpd's x509 subjectaltname code */
-	data = (u_int8_t *)san->value->data;
+	data = (uint8_t *)san->value->data;
 	memcpy(&sanhdr, data, sizeof(sanhdr));
 	santype = sanhdr[2] & 0x3f;
 	sanlen = sanhdr[3];
@@ -1351,7 +1355,7 @@ ca_sslinit(void)
 void
 ca_sslerror(const char *caller)
 {
-	u_long		 error;
+	unsigned long	 error;
 
 	while ((error = ERR_get_error()) != 0)
 		log_warn("%s: %s: %.100s", __func__, caller,

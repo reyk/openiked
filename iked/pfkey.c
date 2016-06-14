@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfkey.c,v 1.43 2015/07/17 14:48:17 mikeb Exp $	*/
+/*	$OpenBSD: pfkey.c,v 1.51 2016/03/07 19:33:26 mmcc Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -47,12 +47,12 @@
 #define ROUNDUP(x) (((x) + (PFKEYV2_CHUNK - 1)) & ~(PFKEYV2_CHUNK - 1))
 #define IOV_CNT 20
 
-#define PFKEYV2_CHUNK sizeof(u_int64_t)
+#define PFKEYV2_CHUNK sizeof(uint64_t)
 #define PFKEY_REPLY_TIMEOUT 1000
 
-static u_int32_t sadb_msg_seq = 0;
-static u_int sadb_decoupled = 0;
-static u_int sadb_ipv6refcnt = 0;
+static uint32_t sadb_msg_seq = 0;
+static unsigned int sadb_decoupled = 0;
+static unsigned int sadb_ipv6refcnt = 0;
 
 static int pfkey_blockipv6 = 0;
 static struct event pfkey_timer_ev;
@@ -141,20 +141,20 @@ static const struct pfkey_constmap pfkey_satype[] = {
 	{ 0 }
 };
 
-int	pfkey_map(const struct pfkey_constmap *, u_int16_t, u_int8_t *);
-int	pfkey_flow(int, u_int8_t, u_int8_t, struct iked_flow *);
-int	pfkey_sa(int, u_int8_t, u_int8_t, struct iked_childsa *);
-int	pfkey_sa_getspi(int, u_int8_t, struct iked_childsa *, u_int32_t *);
-int	pfkey_sagroup(int, u_int8_t, u_int8_t,
+int	pfkey_map(const struct pfkey_constmap *, uint16_t, uint8_t *);
+int	pfkey_flow(int, uint8_t, uint8_t, struct iked_flow *);
+int	pfkey_sa(int, uint8_t, uint8_t, struct iked_childsa *);
+int	pfkey_sa_getspi(int, uint8_t, struct iked_childsa *, uint32_t *);
+int	pfkey_sagroup(int, uint8_t, uint8_t,
 	    struct iked_childsa *, struct iked_childsa *);
 int	pfkey_write(int, struct sadb_msg *, struct iovec *, int,
-	    u_int8_t **, ssize_t *);
-int	pfkey_reply(int, u_int8_t **, ssize_t *);
+	    uint8_t **, ssize_t *);
+int	pfkey_reply(int, uint8_t **, ssize_t *);
 void	pfkey_dispatch(int, short, void *);
 
 struct sadb_ident *
-	pfkey_id2ident(struct iked_id *, u_int);
-void	*pfkey_find_ext(u_int8_t *, ssize_t, int);
+	pfkey_id2ident(struct iked_id *, unsigned int);
+void	*pfkey_find_ext(uint8_t *, ssize_t, int);
 
 void	pfkey_timer_cb(int, short, void *);
 int	pfkey_process(struct iked *, struct pfkey_message *);
@@ -201,7 +201,7 @@ pfkey_couple(int sd, struct iked_sas *sas, int couple)
 }
 
 int
-pfkey_map(const struct pfkey_constmap *map, u_int16_t alg, u_int8_t *pfkalg)
+pfkey_map(const struct pfkey_constmap *map, uint16_t alg, uint8_t *pfkalg)
 {
 	int	 i;
 
@@ -214,7 +214,7 @@ pfkey_map(const struct pfkey_constmap *map, u_int16_t alg, u_int8_t *pfkalg)
 }
 
 int
-pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
+pfkey_flow(int sd, uint8_t satype, uint8_t action, struct iked_flow *flow)
 {
 #if defined(_OPENBSD_IPSEC_API_VERSION)
 	struct sadb_msg		 smsg;
@@ -222,22 +222,19 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 				 sa_dmask;
 	struct sadb_protocol	 sa_flowtype, sa_protocol;
 	struct sadb_ident	*sa_srcid, *sa_dstid;
-	struct sockaddr_storage  ssrc, sdst, slocal, speer, smask, dmask;
+	struct sockaddr_storage	 ssrc, sdst, slocal, speer, smask, dmask;
 	struct iovec		 iov[IOV_CNT];
 	int			 iov_cnt, ret = -1;
-	in_port_t		 sport, dport;
 
-	sport = dport = 0;
 	sa_srcid = sa_dstid = NULL;
 
 	bzero(&ssrc, sizeof(ssrc));
 	bzero(&smask, sizeof(smask));
 	memcpy(&ssrc, &flow->flow_src.addr, sizeof(ssrc));
 	memcpy(&smask, &flow->flow_src.addr, sizeof(smask));
-	if ((sport = flow->flow_src.addr_port) != 0)
-		dport = 0xffff;
-	socket_af((struct sockaddr *)&ssrc, sport);
-	socket_af((struct sockaddr *)&smask, dport);
+	socket_af((struct sockaddr *)&ssrc, flow->flow_src.addr_port);
+	socket_af((struct sockaddr *)&smask, flow->flow_src.addr_port ?
+	    0xffff : 0);
 
 	switch (flow->flow_src.addr_af) {
 	case AF_INET:
@@ -248,8 +245,9 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	case AF_INET6:
 		prefixlen2mask6(flow->flow_src.addr_net ?
 		    flow->flow_src.addr_mask : 128,
-		    (u_int32_t *)((struct sockaddr_in6 *)
+		    (uint32_t *)((struct sockaddr_in6 *)
 		    &smask)->sin6_addr.s6_addr);
+		break;
 	default:
 		log_warnx("%s: unsupported address family %d",
 		    __func__, flow->flow_src.addr_af);
@@ -261,10 +259,9 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	bzero(&dmask, sizeof(dmask));
 	memcpy(&sdst, &flow->flow_dst.addr, sizeof(sdst));
 	memcpy(&dmask, &flow->flow_dst.addr, sizeof(dmask));
-	if ((sport = flow->flow_dst.addr_port) != 0)
-		dport = 0xffff;
-	socket_af((struct sockaddr *)&sdst, sport);
-	socket_af((struct sockaddr *)&dmask, dport);
+	socket_af((struct sockaddr *)&sdst, flow->flow_dst.addr_port);
+	socket_af((struct sockaddr *)&dmask, flow->flow_dst.addr_port ?
+	    0xffff : 0);
 
 	switch (flow->flow_dst.addr_af) {
 	case AF_INET:
@@ -275,7 +272,7 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 	case AF_INET6:
 		prefixlen2mask6(flow->flow_dst.addr_net ?
 		    flow->flow_dst.addr_mask : 128,
-		    (u_int32_t *)((struct sockaddr_in6 *)
+		    (uint32_t *)((struct sockaddr_in6 *)
 		    &dmask)->sin6_addr.s6_addr);
 		break;
 	default:
@@ -324,7 +321,6 @@ pfkey_flow(int sd, u_int8_t satype, u_int8_t action, struct iked_flow *flow)
 
 	bzero(&sa_smask, sizeof(sa_smask));
 	sa_smask.sadb_address_exttype = SADB_X_EXT_SRC_MASK;
-	sa_smask.sadb_address_len =
 	sa_smask.sadb_address_len =
 	    (sizeof(sa_smask) + ROUNDUP(smask.ss_len)) / 8;
 
@@ -702,7 +698,7 @@ pfkey_sa(int sd, uint8_t satype, uint8_t action, struct iked_childsa *sa)
 	bzero(&ssrc, sizeof(ssrc));
 	memcpy(&ssrc, &sa->csa_local->addr, sizeof(ssrc));
 	if (socket_af((struct sockaddr *)&ssrc, 0) == -1) {
-			log_warn("%s: invalid address", __func__);
+		log_warn("%s: invalid address", __func__);
 		return (-1);
 	}
 
@@ -826,7 +822,7 @@ pfkey_sa(int sd, uint8_t satype, uint8_t action, struct iked_childsa *sa)
 			return (-1);
 		}
 
-	if (sa->csa_encrid != 0)
+	if (sa->csa_encrid)
 		if (pfkey_map(pfkey_encr,
 		    sa->csa_encrid, &sadb.sadb_sa_encrypt) == -1) {
 			log_warnx("%s: unsupported encryption algorithm %s",
@@ -963,7 +959,8 @@ pfkey_sa(int sd, uint8_t satype, uint8_t action, struct iked_childsa *sa)
 		iov[iov_cnt].iov_base = &sa_authkey;
 		iov[iov_cnt].iov_len = sizeof(sa_authkey);
 		iov_cnt++;
-		iov[iov_cnt].iov_base = ibuf_data(sa->csa_integrkey);		     iov[iov_cnt].iov_len =
+		iov[iov_cnt].iov_base = ibuf_data(sa->csa_integrkey);
+		iov[iov_cnt].iov_len =
 		    ((ibuf_size(sa->csa_integrkey) + 7) / 8) * 8;
 		smsg.sadb_msg_len += sa_authkey.sadb_key_len;
 		iov_cnt++;
@@ -1018,10 +1015,10 @@ pfkey_sa_last_used(int sd, struct iked_childsa *sa, u_int64_t *last_used)
 	struct sadb_lifetime	*sa_life;
 	struct sockaddr_storage	 ssrc, sdst;
 	struct iovec		 iov[IOV_CNT];
-	u_int8_t		*data;
+	uint8_t			*data;
 	ssize_t			 n;
 	int			 iov_cnt, ret = -1;
-	u_int8_t		 satype;
+	uint8_t			 satype;
 
 	*last_used = 0;
 
@@ -1132,7 +1129,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	struct sadb_spirange	 sa_spirange;
 	struct sockaddr_storage	 ssrc, sdst;
 	struct iovec		 iov[IOV_CNT];
-	u_int8_t		*data;
+	uint8_t			*data;
 	ssize_t			 n;
 	int			 iov_cnt, ret = -1;
 
@@ -1162,7 +1159,8 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	sa_spirange.sadb_spirange_exttype = SADB_EXT_SPIRANGE;
 	sa_spirange.sadb_spirange_len = sizeof(sa_spirange) / 8;
 	sa_spirange.sadb_spirange_min = 0x100;
-	sa_spirange.sadb_spirange_max = 0xffffffff;
+	sa_spirange.sadb_spirange_max = (satype == SADB_X_SATYPE_IPCOMP) ?
+	    (CPI_PRIVATE_MIN - 1) : 0xffffffff;
 	sa_spirange.sadb_spirange_reserved = 0;
 
 	bzero(&sa_src, sizeof(sa_src));
@@ -1241,7 +1239,7 @@ pfkey_sagroup(int sd, u_int8_t satype1, u_int8_t action,
 	struct sadb_protocol	sa_proto;
 	struct iovec		iov[IOV_CNT];
 	int			iov_cnt;
-	u_int8_t		satype2;
+	uint8_t			satype2;
 
 	if (pfkey_map(pfkey_satype, sa2->csa_saproto, &satype2) == -1)
 		return (-1);
@@ -1377,12 +1375,12 @@ pfkey_write(int sd, struct sadb_msg *smsg, struct iovec *iov, int iov_cnt,
 }
 
 int
-pfkey_reply(int sd, u_int8_t **datap, ssize_t *lenp)
+pfkey_reply(int sd, uint8_t **datap, ssize_t *lenp)
 {
 	struct pfkey_message	*pm;
 	struct sadb_msg		 hdr;
 	ssize_t			 len;
-	u_int8_t		*data;
+	uint8_t			*data;
 	struct pollfd		pfd[1];
 	int			 n;
 
@@ -1432,12 +1430,12 @@ pfkey_reply(int sd, u_int8_t **datap, ssize_t *lenp)
 
 		/* XXX: Only one message can be outstanding. */
 		if (hdr.sadb_msg_seq == sadb_msg_seq &&
-		    hdr.sadb_msg_pid == (u_int32_t)getpid())
+		    hdr.sadb_msg_pid == (uint32_t)getpid())
 			break;
 
 		/* ignore messages for other processes */
 		if (hdr.sadb_msg_pid != 0 &&
-		    hdr.sadb_msg_pid != (u_int32_t)getpid()) {
+		    hdr.sadb_msg_pid != (uint32_t)getpid()) {
 			free(data);
 			continue;
 		}
@@ -1474,7 +1472,7 @@ pfkey_reply(int sd, u_int8_t **datap, ssize_t *lenp)
 int
 pfkey_flow_add(int fd, struct iked_flow *flow)
 {
-	u_int8_t	 satype;
+	uint8_t		 satype;
 
 	if (flow->flow_loaded)
 		return (0);
@@ -1499,7 +1497,7 @@ pfkey_flow_add(int fd, struct iked_flow *flow)
 int
 pfkey_flow_delete(int fd, struct iked_flow *flow)
 {
-	u_int8_t	satype;
+	uint8_t		satype;
 
 	if (!flow->flow_loaded)
 		return (0);
@@ -1522,7 +1520,7 @@ pfkey_flow_delete(int fd, struct iked_flow *flow)
 }
 
 int
-pfkey_block(int fd, int af, u_int action)
+pfkey_block(int fd, int af, unsigned int action)
 {
 	struct iked_flow	 flow;
 
@@ -1531,7 +1529,7 @@ pfkey_block(int fd, int af, u_int action)
 
 	/*
 	 * Prevent VPN traffic leakages in dual-stack hosts/networks.
-	 * http://tools.ietf.org/html/draft-gont-opsec-vpn-leakages.
+	 * https://tools.ietf.org/html/draft-gont-opsec-vpn-leakages.
 	 * We forcibly block IPv6 traffic unless it is used in any of
 	 * the flows by tracking a sadb_ipv6refcnt reference counter.
 	 */
@@ -1552,9 +1550,9 @@ pfkey_block(int fd, int af, u_int action)
 }
 
 int
-pfkey_sa_init(int fd, struct iked_childsa *sa, u_int32_t *spi)
+pfkey_sa_init(int fd, struct iked_childsa *sa, uint32_t *spi)
 {
-	u_int8_t	satype;
+	uint8_t		 satype;
 
 	if (pfkey_map(pfkey_satype, sa->csa_saproto, &satype) == -1)
 		return (-1);
@@ -1570,8 +1568,8 @@ pfkey_sa_init(int fd, struct iked_childsa *sa, u_int32_t *spi)
 int
 pfkey_sa_add(int fd, struct iked_childsa *sa, struct iked_childsa *last)
 {
-	u_int8_t	 satype;
-	u_int		 cmd;
+	uint8_t		 satype;
+	unsigned int	 cmd;
 
 	if (pfkey_map(pfkey_satype, sa->csa_saproto, &satype) == -1)
 		return (-1);
@@ -1617,7 +1615,7 @@ pfkey_sa_add(int fd, struct iked_childsa *sa, struct iked_childsa *last)
 int
 pfkey_sa_delete(int fd, struct iked_childsa *sa)
 {
-	u_int8_t	satype;
+	uint8_t		satype;
 
 	if (!sa->csa_loaded || sa->csa_spi.spi == 0)
 		return (0);
@@ -1657,10 +1655,10 @@ pfkey_flush(int sd)
 }
 
 struct sadb_ident *
-pfkey_id2ident(struct iked_id *id, u_int exttype)
+pfkey_id2ident(struct iked_id *id, unsigned int exttype)
 {
 	char			 idstr[IKED_ID_SIZE];
-	u_int			 type;
+	unsigned int		 type;
 	size_t			 len;
 	struct sadb_ident	*sa_id;
 
@@ -1773,15 +1771,15 @@ pfkey_init(struct iked *env, int fd)
 }
 
 void *
-pfkey_find_ext(u_int8_t *data, ssize_t len, int type)
+pfkey_find_ext(uint8_t *data, ssize_t len, int type)
 {
 	struct sadb_ext	*ext = (struct sadb_ext *)(data +
 	    sizeof(struct sadb_msg));
 
-	while (ext && ((u_int8_t *)ext - data < len)) {
+	while (ext && ((uint8_t *)ext - data < len)) {
 		if (ext->sadb_ext_type == type)
 			return (ext);
-		ext = (struct sadb_ext *)((u_int8_t *)ext +
+		ext = (struct sadb_ext *)((uint8_t *)ext +
 		    ext->sadb_ext_len * PFKEYV2_CHUNK);
 	}
 
@@ -1795,7 +1793,7 @@ pfkey_dispatch(int sd, short event, void *arg)
 	struct pfkey_message	 pm, *pmp;
 	struct sadb_msg		 hdr;
 	ssize_t			 len;
-	u_int8_t		*data;
+	uint8_t			*data;
 
 	if (recv(sd, &hdr, sizeof(hdr), MSG_PEEK) != sizeof(hdr)) {
 		log_warn("%s: short recv", __func__);
@@ -1903,6 +1901,7 @@ pfkey_process(struct iked *env, struct pfkey_message *pm)
 	return 0;
 
 	hdr = (struct sadb_msg *)data;
+	sd = env->sc_pfkey;
 
 	switch (hdr->sadb_msg_type) {
 	case SADB_ACQUIRE:

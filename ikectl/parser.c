@@ -1,4 +1,4 @@
-/*	$OpenBSD: parser.c,v 1.13 2015/01/16 06:40:17 deraadt Exp $	*/
+/*	$OpenBSD: parser.c,v 1.15 2015/11/02 10:27:44 jsg Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -67,6 +67,7 @@ static const struct token t_ca_ex_pass[];
 static const struct token t_ca_modifiers[];
 static const struct token t_ca_cert[];
 static const struct token t_ca_cert_extusage[];
+static const struct token t_ca_cert_ex_peer[];
 static const struct token t_ca_cert_modifiers[];
 static const struct token t_ca_key[];
 static const struct token t_ca_key_modifiers[];
@@ -180,6 +181,7 @@ static const struct token t_ca_cert_extusage[] = {
 	{ NOTOKEN,	"",		NONE,		NULL},
 	{ KEYWORD,	"server",	CA_SERVER,	NULL },
 	{ KEYWORD,	"client",	CA_CLIENT,	NULL },
+	{ KEYWORD,	"ocsp",		CA_OCSP,	NULL },
 	{ ENDTOKEN,	"",		NONE,		NULL },
 };
 
@@ -282,7 +284,7 @@ parse_addr(const char *word)
 const struct token *
 match_token(char *word, const struct token table[])
 {
-	u_int			 i, match = 0;
+	unsigned int		 i, match = 0;
 	const struct token	*t = NULL;
 
 	for (i = 0; table[i].type != ENDTOKEN; i++) {

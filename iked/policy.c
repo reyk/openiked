@@ -1,4 +1,4 @@
-/*	$OpenBSD: policy.c,v 1.37 2015/07/07 19:13:31 markus Exp $	*/
+/*	$OpenBSD: policy.c,v 1.42 2016/06/01 11:16:41 patrick Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -22,9 +22,9 @@
 #include <sys/uio.h>
 
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -48,6 +48,7 @@ void
 policy_init(struct iked *env)
 {
 	TAILQ_INIT(&env->sc_policies);
+	TAILQ_INIT(&env->sc_ocsp);
 	RB_INIT(&env->sc_users);
 	RB_INIT(&env->sc_sas);
 	RB_INIT(&env->sc_activesas);
@@ -76,7 +77,7 @@ policy_lookup(struct iked *env, struct iked_message *msg)
 	    (s = strchr(idstr, '/')) != NULL) {
 		pol.pol_peerid.id_type = msg->msg_id.id_type;
 		pol.pol_peerid.id_length = strlen(s+1);
-		strlcpy((char *)pol.pol_peerid.id_data, s+1,
+		strlcpy(pol.pol_peerid.id_data, s+1,
 		    sizeof(pol.pol_peerid.id_data));
 		log_debug("%s: peerid '%s'", __func__, s+1);
 	}
@@ -99,19 +100,23 @@ policy_lookup(struct iked *env, struct iked_message *msg)
 /*
  * Check if host is in a subnet
  */
-bool is_in_subnet(struct sockaddr_in* host, struct sockaddr_in* subnet,
-		  u_int8_t subnet_mask) {
+bool
+is_in_subnet(struct sockaddr_in* host, struct sockaddr_in* subnet,
+    uint8_t subnet_mask)
+{
 	uint32_t host_addr = ntohl(host->sin_addr.s_addr);
 	uint32_t subnet_addr = ntohl(subnet->sin_addr.s_addr);
-
 	unsigned int mask = 0xFFFFFFFF << (32 - subnet_mask);
+
 	return ((host_addr & mask) == (subnet_addr & mask));
 }
 
-bool isipv4_flow_and_policy(struct iked_addr fsrc, struct iked_addr fdst,
-			    struct iked_addr psrc, struct iked_addr pdst) {
+bool
+isipv4_flow_and_policy(struct iked_addr fsrc, struct iked_addr fdst,
+    struct iked_addr psrc, struct iked_addr pdst)
+{
 	return (fsrc.addr_af == AF_INET) && (fdst.addr_af == AF_INET) &&
-	       (psrc.addr_af == AF_INET) && (pdst.addr_af == AF_INET);
+	    (psrc.addr_af == AF_INET) && (pdst.addr_af == AF_INET);
 }
 
 /*
@@ -119,17 +124,18 @@ bool isipv4_flow_and_policy(struct iked_addr fsrc, struct iked_addr fdst,
  * This routinue checks if an incoming flow matches a preconfigured
  * policy in the config
  */
-bool flow_matches_policy(struct iked_addr fsrc, struct iked_addr fdst,
-			 struct iked_addr psrc, struct iked_addr pdst) {
-
+bool
+flow_matches_policy(struct iked_addr fsrc, struct iked_addr fdst,
+    struct iked_addr psrc, struct iked_addr pdst)
+{
 	struct sockaddr_in *fsrc_addr, *psrc_addr, *fdst_addr, *pdst_addr;
 	fsrc_addr = (struct sockaddr_in*)&(fsrc.addr);
 	psrc_addr = (struct sockaddr_in*)&(psrc.addr);
 	fdst_addr = (struct sockaddr_in*)&(fdst.addr);
 	pdst_addr = (struct sockaddr_in*)&(pdst.addr);
 	return (isipv4_flow_and_policy(fsrc, fdst, psrc, pdst) &&
-		is_in_subnet(fsrc_addr, psrc_addr, psrc.addr_mask) &&
-		is_in_subnet(fdst_addr, pdst_addr, pdst.addr_mask));
+	    is_in_subnet(fsrc_addr, psrc_addr, psrc.addr_mask) &&
+	    is_in_subnet(fdst_addr, pdst_addr, pdst.addr_mask));
 }
 
 struct iked_policy *
@@ -166,7 +172,7 @@ policy_test(struct iked *env, struct iked_policy *key)
 			 */
 			if (key->pol_nflows &&
 			    (flowkey = RB_MIN(iked_flows,
-					      &key->pol_flows)) != NULL) {
+			     &key->pol_flows)) != NULL) {
 				bool match = false;
 				struct iked_addr psrc, pdst, fsrc, fdst;
 				/*
@@ -175,19 +181,19 @@ policy_test(struct iked *env, struct iked_policy *key)
 				 * or rules specified in iked.conf
 				 */
 				RB_FOREACH(flow, iked_flows, &p->pol_flows) {
-				     psrc = flow->flow_src;
-				     pdst = flow->flow_dst;
-				     fsrc = flowkey->flow_src;
-				     fdst = flowkey->flow_dst;
-				     if (flow_matches_policy(fsrc, fdst,
-							    psrc, pdst)) {
-					   match = true;
-					   break;
-				     }
+					psrc = flow->flow_src;
+					pdst = flow->flow_dst;
+					fsrc = flowkey->flow_src;
+					fdst = flowkey->flow_dst;
+					if (flow_matches_policy(fsrc, fdst,
+					    psrc, pdst)) {
+						match = true;
+						break;
+					}
 				}
 				if (!match) {
-				    p = TAILQ_NEXT(p, pol_entry);
-				    continue;
+					p = TAILQ_NEXT(p, pol_entry);
+					continue;
 				}
 			}
 			/* make sure the peer ID matches */
@@ -286,7 +292,7 @@ sa_state(struct iked *env, struct iked_sa *sa, int state)
 {
 	const char		*a;
 	const char		*b;
-	int			ostate = sa->sa_state;
+	int			 ostate = sa->sa_state;
 
 	a = print_map(ostate, ikev2_state_map);
 	b = print_map(state, ikev2_state_map);
@@ -318,19 +324,19 @@ sa_state(struct iked *env, struct iked_sa *sa, int state)
 }
 
 void
-sa_stateflags(struct iked_sa *sa, u_int flags)
+sa_stateflags(struct iked_sa *sa, unsigned int flags)
 {
-	u_int	require;
+	unsigned int	require;
 
 	if (sa->sa_state > IKEV2_STATE_SA_INIT)
 		require = sa->sa_statevalid;
 	else
 		require = sa->sa_stateinit;
 
-	log_debug("%s: 0x%02x -> 0x%02x %s (required 0x%02x %s)", __func__,
+	log_debug("%s: 0x%04x -> 0x%04x %s (required 0x%04x %s)", __func__,
 	    sa->sa_stateflags, sa->sa_stateflags | flags,
-	    print_bits(sa->sa_stateflags | flags, (u_char *)IKED_REQ_BITS),
-	    require, print_bits(require, (u_char *)IKED_REQ_BITS));
+	    print_bits(sa->sa_stateflags | flags, IKED_REQ_BITS), require,
+	    print_bits(require, IKED_REQ_BITS));
 
 	sa->sa_stateflags |= flags;
 }
@@ -338,7 +344,7 @@ sa_stateflags(struct iked_sa *sa, u_int flags)
 int
 sa_stateok(struct iked_sa *sa, int state)
 {
-	u_int	 require;
+	unsigned int	 require;
 
 	if (sa->sa_state < state)
 		return (0);
@@ -351,10 +357,10 @@ sa_stateok(struct iked_sa *sa, int state)
 	if (state == IKEV2_STATE_SA_INIT ||
 	    state == IKEV2_STATE_VALID ||
 	    state == IKEV2_STATE_EAP_VALID) {
-		log_debug("%s: %s flags 0x%02x, require 0x%02x %s", __func__,
+		log_debug("%s: %s flags 0x%04x, require 0x%04x %s", __func__,
 		    print_map(state, ikev2_state_map),
 		    (sa->sa_stateflags & require), require,
-		    print_bits(require, (u_char *)IKED_REQ_BITS));
+		    print_bits(require, IKED_REQ_BITS));
 
 		if ((sa->sa_stateflags & require) != require)
 			return (0);	/* not ready, ignore */
@@ -363,13 +369,13 @@ sa_stateok(struct iked_sa *sa, int state)
 }
 
 struct iked_sa *
-sa_new(struct iked *env, u_int64_t ispi, u_int64_t rspi,
-    u_int initiator, struct iked_policy *pol)
+sa_new(struct iked *env, uint64_t ispi, uint64_t rspi,
+    unsigned int initiator, struct iked_policy *pol)
 {
 	struct iked_sa	*sa;
 	struct iked_sa	*old;
 	struct iked_id	*localid;
-	u_int		 diff;
+	unsigned int	 diff;
 
 	if ((ispi == 0 && rspi == 0) ||
 	    (sa = sa_lookup(env, ispi, rspi, initiator)) == NULL) {
@@ -497,7 +503,7 @@ childsa_free(struct iked_childsa *csa)
 }
 
 struct iked_childsa *
-childsa_lookup(struct iked_sa *sa, u_int64_t spi, u_int8_t protoid)
+childsa_lookup(struct iked_sa *sa, uint64_t spi, uint8_t protoid)
 {
 	struct iked_childsa	*csa;
 
@@ -519,8 +525,8 @@ flow_free(struct iked_flow *flow)
 }
 
 struct iked_sa *
-sa_lookup(struct iked *env, u_int64_t ispi, u_int64_t rspi,
-    u_int initiator)
+sa_lookup(struct iked *env, uint64_t ispi, uint64_t rspi,
+    unsigned int initiator)
 {
 	struct iked_sa	*sa, key;
 
@@ -574,6 +580,13 @@ sa_addrpool_cmp(struct iked_sa *a, struct iked_sa *b)
 {
 	return (sockaddr_cmp((struct sockaddr *)&a->sa_addrpool->addr,
 	    (struct sockaddr *)&b->sa_addrpool->addr, -1));
+}
+
+static __inline int
+sa_addrpool6_cmp(struct iked_sa *a, struct iked_sa *b)
+{
+	return (sockaddr_cmp((struct sockaddr *)&a->sa_addrpool6->addr,
+	    (struct sockaddr *)&b->sa_addrpool6->addr, -1));
 }
 
 struct iked_user *
@@ -638,6 +651,7 @@ flow_cmp(struct iked_flow *a, struct iked_flow *b)
 
 RB_GENERATE(iked_sas, iked_sa, sa_entry, sa_cmp);
 RB_GENERATE(iked_addrpool, iked_sa, sa_addrpool_entry, sa_addrpool_cmp);
+RB_GENERATE(iked_addrpool6, iked_sa, sa_addrpool6_entry, sa_addrpool6_cmp);
 RB_GENERATE(iked_users, iked_user, usr_entry, user_cmp);
 RB_GENERATE(iked_activesas, iked_childsa, csa_node, childsa_cmp);
 RB_GENERATE(iked_flows, iked_flow, flow_node, flow_cmp);

@@ -1,3 +1,5 @@
+/*	$OpenBSD: ocsp.c,v 1.8 2015/12/07 12:46:37 reyk Exp $ */
+
 /*
  * Copyright (c) 2014 Markus Friedl
  * Copyright (c) 2005 Marco Pfatschbacher
@@ -40,7 +42,7 @@
 struct iked_ocsp {
 	struct iked		*ocsp_env;	/* back pointer to env */
 	struct iked_sahdr	 ocsp_sh;	/* ike sa */
-	u_int8_t		 ocsp_type;	/* auth type */
+	uint8_t			 ocsp_type;	/* auth type */
 	struct iked_socket	*ocsp_sock;	/* socket to ocsp responder */
 	BIO			*ocsp_cbio;	/* matching OpenSSL obj */
 	OCSP_CERTID		*ocsp_id;	/* ocsp-id for cert */
@@ -86,7 +88,7 @@ ocsp_connect(struct iked *env)
 		goto done;
 	}
 
-	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
 		log_debug("%s: socket failed", __func__);
 		goto done;
 	}
@@ -120,7 +122,6 @@ ocsp_connect(struct iked *env)
 	path = NULL;
 
 	log_debug("%s: connect(%s, %s)", __func__, host, port);
-	socket_set_blockmode(fd, BM_NONBLOCK);
 	if (connect(fd, res->ai_addr, res->ai_addrlen) == -1) {
 		/* register callback for ansync connect */
 		if (errno == EINPROGRESS) {
@@ -185,10 +186,10 @@ ocsp_connect_finish(struct iked *env, int fd, struct ocsp_connect *oc)
 		iov[0].iov_base = oc->oc_path;
 		iov[0].iov_len = strlen(oc->oc_path);
 		ret = proc_composev_imsg(&env->sc_ps, PROC_CERT, -1,
-		    IMSG_OCSP_FD, fd, iov, iovcnt);
+		    IMSG_OCSP_FD, -1, fd, iov, iovcnt);
 	} else {
 		ret = proc_compose_imsg(&env->sc_ps, PROC_CERT, -1,
-		    IMSG_OCSP_FD, -1, NULL, 0);
+		    IMSG_OCSP_FD, -1, -1, NULL, 0);
 		if (fd >= 0)
 			close(fd);
 	}
@@ -205,7 +206,7 @@ ocsp_connect_finish(struct iked *env, int fd, struct ocsp_connect *oc)
 /* validate the certifcate stored in 'data' by querying the ocsp-responder */
 int
 ocsp_validate_cert(struct iked *env, struct iked_static_id *id,
-    void *data, size_t len, struct iked_sahdr sh, u_int8_t type)
+    void *data, size_t len, struct iked_sahdr sh, uint8_t type)
 {
 	struct iked_ocsp_entry	*ioe;
 	struct iked_ocsp	*ocsp;
@@ -242,8 +243,7 @@ ocsp_validate_cert(struct iked *env, struct iked_static_id *id,
 	TAILQ_INSERT_TAIL(&env->sc_ocsp, ioe, ioe_entry);
 
 	/* request connection to ocsp-responder */
-	proc_compose_imsg(&env->sc_ps, PROC_PARENT, -1,
-	    IMSG_OCSP_FD, -1, NULL, 0);
+	proc_compose(&env->sc_ps, PROC_PARENT, IMSG_OCSP_FD, NULL, 0);
 	return (0);
 
  err:
@@ -504,8 +504,7 @@ ocsp_validate_finish(struct iked_ocsp *ocsp, int valid)
 	iov[1].iov_len = sizeof(ocsp->ocsp_type);
 
 	cmd = valid ? IMSG_CERTVALID : IMSG_CERTINVALID;
-	ret = proc_composev_imsg(&env->sc_ps, PROC_IKEV2, -1,
-	    cmd, -1, iov, iovcnt);
+	ret = proc_composev(&env->sc_ps, PROC_IKEV2, cmd, iov, iovcnt);
 
 	ocsp_free(ocsp);
 	return (ret);

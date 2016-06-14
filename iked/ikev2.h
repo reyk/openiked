@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikev2.h,v 1.19 2015/06/11 18:49:09 reyk Exp $	*/
+/*	$OpenBSD: ikev2.h,v 1.23 2015/10/31 19:28:19 naddy Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -73,9 +73,9 @@ extern struct iked_constmap ikev2_flag_map[];
  */
 
 struct ikev2_payload {
-	u_int8_t	 pld_nextpayload;	/* Next payload type */
-	u_int8_t	 pld_reserved;		/* Contains the critical bit */
-	u_int16_t	 pld_length;		/* Payload length with header */
+	uint8_t		 pld_nextpayload;	/* Next payload type */
+	uint8_t		 pld_reserved;		/* Contains the critical bit */
+	uint16_t	 pld_length;		/* Payload length with header */
 } __packed;
 
 #define IKEV2_CRITICAL_PAYLOAD	0x01	/* First bit in the reserved field */
@@ -107,13 +107,13 @@ extern struct iked_constmap ikev2_payload_map[];
  */
 
 struct ikev2_sa_proposal {
-	u_int8_t	 sap_more;		/* Last proposal or more */
-	u_int8_t	 sap_reserved;		/* Must be set to zero */
-	u_int16_t	 sap_length;		/* Proposal length */
-	u_int8_t	 sap_proposalnr;	/* Proposal number */
-	u_int8_t	 sap_protoid;		/* Protocol Id */
-	u_int8_t	 sap_spisize;		/* SPI size */
-	u_int8_t	 sap_transforms;	/* Number of transforms */
+	uint8_t		 sap_more;		/* Last proposal or more */
+	uint8_t		 sap_reserved;		/* Must be set to zero */
+	uint16_t	 sap_length;		/* Proposal length */
+	uint8_t		 sap_proposalnr;	/* Proposal number */
+	uint8_t		 sap_protoid;		/* Protocol Id */
+	uint8_t		 sap_spisize;		/* SPI size */
+	uint8_t		 sap_transforms;	/* Number of transforms */
 	/* Followed by variable-length SPI */
 	/* Followed by variable-length transforms */
 } __packed;
@@ -132,12 +132,12 @@ struct ikev2_sa_proposal {
 extern struct iked_constmap ikev2_saproto_map[];
 
 struct ikev2_transform {
-	u_int8_t	xfrm_more;		/* Last transform or more */
-	u_int8_t	xfrm_reserved;		/* Must be set to zero */
-	u_int16_t	xfrm_length;		/* Transform length */
-	u_int8_t	xfrm_type;		/* Transform type */
-	u_int8_t	xfrm_reserved1;		/* Must be set to zero */
-	u_int16_t	xfrm_id;		/* Transform Id */
+	uint8_t		xfrm_more;		/* Last transform or more */
+	uint8_t		xfrm_reserved;		/* Must be set to zero */
+	uint16_t	xfrm_length;		/* Transform length */
+	uint8_t		xfrm_type;		/* Transform type */
+	uint8_t		xfrm_reserved1;		/* Must be set to zero */
+	uint16_t	xfrm_id;		/* Transform Id */
 	/* Followed by variable-length transform attributes */
 } __packed;
 
@@ -180,6 +180,7 @@ extern struct iked_constmap ikev2_xformtype_map[];
 #define IKEV2_XFORMENCR_CAMELLIA_CCM_8	25	/* RFC5529 */
 #define IKEV2_XFORMENCR_CAMELLIA_CCM_12	26	/* RFC5529 */
 #define IKEV2_XFORMENCR_CAMELLIA_CCM_16	27	/* RFC5529 */
+#define IKEV2_XFORMENCR_CHACHA20_POLY1305 28	/* RFC7634 */
 
 extern struct iked_constmap ikev2_xformencr_map[];
 
@@ -242,7 +243,7 @@ extern struct iked_constmap ikev2_xformauth_map[];
 #define IKEV2_XFORMDH_BRAINPOOL_P256R1	28	/* DH Group 28 */
 #define IKEV2_XFORMDH_BRAINPOOL_P384R1	29	/* DH Group 29 */
 #define IKEV2_XFORMDH_BRAINPOOL_P512R1	30	/* DH Group 30 */
-#define IKEV2_XFORMDH_X_CURVE25519	1034	/* curve25519 */
+#define IKEV2_XFORMDH_X_CURVE25519	1034	/* draft-ietf-ipsecme-safecurves-00 */
 
 extern struct iked_constmap ikev2_xformdh_map[];
 
@@ -252,8 +253,8 @@ extern struct iked_constmap ikev2_xformdh_map[];
 extern struct iked_constmap ikev2_xformesn_map[];
 
 struct ikev2_attribute {
-	u_int16_t	attr_type;	/* Attribute type */
-	u_int16_t	attr_length;	/* Attribute length or value */
+	uint16_t	attr_type;	/* Attribute type */
+	uint16_t	attr_length;	/* Attribute length or value */
 	/* Followed by variable length (TLV) */
 } __packed;
 
@@ -269,8 +270,8 @@ extern struct iked_constmap ikev2_attrtype_map[];
  */
 
 struct ikev2_keyexchange {
-	u_int16_t	 kex_dhgroup;		/* DH Group # */
-	u_int16_t	 kex_reserved;		/* Reserved */
+	uint16_t	 kex_dhgroup;		/* DH Group # */
+	uint16_t	 kex_reserved;		/* Reserved */
 } __packed;
 
 /*
@@ -278,9 +279,9 @@ struct ikev2_keyexchange {
  */
 
 struct ikev2_notify {
-	u_int8_t	 n_protoid;		/* Protocol Id */
-	u_int8_t	 n_spisize;		/* SPI size */
-	u_int16_t	 n_type;		/* Notify message type */
+	uint8_t		 n_protoid;		/* Protocol Id */
+	uint8_t		 n_spisize;		/* SPI size */
+	uint16_t	 n_type;		/* Notify message type */
 	/* Followed by variable length SPI */
 	/* Followed by variable length notification data */
 } __packed;
@@ -359,9 +360,9 @@ extern struct iked_constmap ikev2_n_map[];
  */
 
 struct ikev2_delete {
-	u_int8_t	 del_protoid;		/* Protocol Id */
-	u_int8_t	 del_spisize;		/* SPI size */
-	u_int16_t	 del_nspi;		/* Number of SPIs */
+	uint8_t		 del_protoid;		/* Protocol Id */
+	uint8_t		 del_spisize;		/* SPI size */
+	uint16_t	 del_nspi;		/* Number of SPIs */
 	/* Followed by variable length SPIs */
 } __packed;
 
@@ -370,8 +371,8 @@ struct ikev2_delete {
  */
 
 struct ikev2_id {
-	u_int8_t	 id_type;		/* Id type */
-	u_int8_t	 id_reserved[3];	/* Reserved */
+	uint8_t		 id_type;		/* Id type */
+	uint8_t		 id_reserved[3];	/* Reserved */
 	/* Followed by the identification data */
 } __packed;
 
@@ -392,7 +393,7 @@ extern struct iked_constmap ikev2_id_map[];
  */
 
 struct ikev2_cert {
-	u_int8_t	cert_type;	/* Encoding */
+	uint8_t		cert_type;	/* Encoding */
 	/* Followed by the certificate data */
 } __packed;
 
@@ -418,17 +419,17 @@ extern struct iked_constmap ikev2_cert_map[];
  */
 
 struct ikev2_tsp {
-	u_int8_t	tsp_count;		/* Number of TSs */
-	u_int8_t	tsp_reserved[3];	/* Reserved */
+	uint8_t		tsp_count;		/* Number of TSs */
+	uint8_t		tsp_reserved[3];	/* Reserved */
 	/* Followed by the traffic selectors */
 } __packed;
 
 struct ikev2_ts {
-	u_int8_t	ts_type;		/* TS type */
-	u_int8_t	ts_protoid;		/* Protocol Id */
-	u_int16_t	ts_length;		/* Length */
-	u_int16_t	ts_startport;		/* Start port */
-	u_int16_t	ts_endport;		/* End port */
+	uint8_t		ts_type;		/* TS type */
+	uint8_t		ts_protoid;		/* Protocol Id */
+	uint16_t	ts_length;		/* Length */
+	uint16_t	ts_startport;		/* Start port */
+	uint16_t	ts_endport;		/* End port */
 } __packed;
 
 #define IKEV2_TS_IPV4_ADDR_RANGE	7	/* RFC4306 */
@@ -442,8 +443,8 @@ extern struct iked_constmap ikev2_ts_map[];
  */
 
 struct ikev2_auth {
-	u_int8_t	auth_method;		/* Signature type */
-	u_int8_t	auth_reserved[3];	/* Reserved */
+	uint8_t		auth_method;		/* Signature type */
+	uint8_t		auth_reserved[3];	/* Reserved */
 	/* Followed by the signature */
 } __packed;
 
@@ -453,8 +454,9 @@ struct ikev2_auth {
 #define IKEV2_AUTH_DSS_SIG		3	/* RFC4306 */
 #define IKEV2_AUTH_ECDSA_256		9	/* RFC4754 */
 #define IKEV2_AUTH_ECDSA_384		10	/* RFC4754 */
-#define IKEV2_AUTH_ECDSA_512		11	/* RFC4754 */
+#define IKEV2_AUTH_ECDSA_521		11	/* RFC4754 */
 #define IKEV2_AUTH_GSPM			12	/* RFC6467 */
+#define IKEV2_AUTH_NULL			13	/* RFC7619 */
 #define IKEV2_AUTH_SIG			14	/* RFC7427 */
 
 extern struct iked_constmap ikev2_auth_map[];
@@ -474,8 +476,8 @@ extern struct iked_constmap ikev2_sighash_map[];
  */
 
 struct ikev2_cp {
-	u_int8_t	cp_type;
-	u_int8_t	cp_reserved[3];
+	uint8_t		cp_type;
+	uint8_t		cp_reserved[3];
 	/* Followed by the attributes */
 } __packed;
 
@@ -487,8 +489,8 @@ struct ikev2_cp {
 extern struct iked_constmap ikev2_cp_map[];
 
 struct ikev2_cfg {
-	u_int16_t	cfg_type;	/* first bit must be set to zero */
-	u_int16_t	cfg_length;
+	uint16_t	cfg_type;	/* first bit must be set to zero */
+	uint16_t	cfg_length;
 	/* Followed by variable-length data */
 } __packed;
 
