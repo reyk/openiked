@@ -88,6 +88,7 @@
 # define STORAGE_LEN(X) ((X).__ss_len)
 # define SET_STORAGE_LEN(X, Y) do { STORAGE_LEN(X) = (Y); } while(0)
 #else
+# define STORAGE_FAMILY(x) ((x).ss_family)
 # define STORAGE_LEN(X) (STORAGE_FAMILY(X) == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))
 # define SET_STORAGE_LEN(X, Y) (void) 0
 #endif
@@ -187,6 +188,14 @@ void explicit_bzero(void *buf, size_t len);
 
 #ifndef HAVE_PLEDGE
 int pledge(const char *promises, const char *paths[]);
+#endif
+
+#ifndef HAVE_ERRC
+void errc(int eval, int code, const char *fmt, ...);
+#endif
+
+#ifndef HAVE_WARNC
+void warnc(int code, const char *fmt, ...);
 #endif
 
 int bsd_socket(int domain, int type, int protocol);

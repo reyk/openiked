@@ -141,15 +141,16 @@ enum
 # define O_NONBLOCK	 00004	/* Non Blocking Open */
 #endif
 
-#if !defined(HAVE_DECL_SOCK_NONBLOCK)
+#if defined(HAVE_DECL_SOCK_NONBLOCK) && HAVE_DECL_SOCK_NONBLOCK == 0
 # define SOCK_NONBLOCK	0x4000	/* Set O_NONBLOCK */
 #endif
 
-#if !defined(HAVE_DECL_SOCK_CLOEXEC)
+#if defined(HAVE_DECL_SOCK_CLOEXEC) && HAVE_DECL_SOCK_CLOEXEC == 0
 # define SOCK_CLOEXEC	0x8000	/* Set FD_CLOEXEC */
 #endif
 
-#if !defined(HAVE_DECL_SOCK_CLOEXEC) || !defined(HAVE_DECL_SOCK_NONBLOCK)
+#if (defined(HAVE_DECL_SOCK_NONBLOCK) && HAVE_DECL_SOCK_NONBLOCK == 0) || \
+    (defined(HAVE_DECL_SOCK_CLOEXEC) && HAVE_DECL_SOCK_CLOEXEC == 0)
 # define SOCK_SETFLAGS	0xf000	/* Set flags as checked above */
 #endif
 
@@ -358,6 +359,14 @@ struct	sockaddr_un {
 
 #if !defined(AF_LINK) && defined(AF_PACKET)
 #define AF_LINK	AF_PACKET		/* XXX workaround on Linux */
+#endif
+
+#if defined(HAVE_DECL_IP_RECVDSTADDR) && HAVE_DECL_IP_RECVDSTADDR == 0
+#if defined(HAVE_DECL_IP_RECVORIGDSTADDR) && HAVE_DECL_IP_RECVORIGDSTADDR == 1
+#define IP_RECVDSTADDR IP_RECVORIGDSTADDR
+#else
+#error "IP_RECVDSTADDR not supported"
+#endif
 #endif
 
 #ifndef HAVE_IN_ADDR_T

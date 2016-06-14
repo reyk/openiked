@@ -657,7 +657,8 @@ host_spec	: STRING			{
 		| STRING '/' NUMBER		{
 			char	*buf;
 
-			if (asprintf(&buf, "%s/%lld", $1, $3) == -1)
+			if (asprintf(&buf, "%s/%lld", $1,
+			    (long long int)$3) == -1)
 				err(1, "host: asprintf");
 			free($1);
 			if (($$ = host(buf)) == NULL)	{
@@ -1809,7 +1810,7 @@ host_v4(const char *s, int mask)
 		err(1, "host_v4: calloc");
 
 	ina.sin_family = AF_INET;
-	ina.sin_len = sizeof(ina);
+	SET_STORAGE_LEN((struct sockaddr_storage)ina, sizeof(ina));
 	memcpy(&ipa->address, &ina, sizeof(ina));
 
 	ipa->name = strdup(s);

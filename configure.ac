@@ -75,13 +75,12 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
 	GCC_VER=`$CC -v 2>&1 | grep  ' version '`
 	case $GCC_VER in
-		gcc*1.*) no_attrib_nonnull=1 ;;
-		gcc*2.8* | gcc*2.9*)
-		     CFLAGS="$CFLAGS -Wsign-compare"
-		     no_attrib_nonnull=1
-		     ;;
 		gcc*2.*) no_attrib_nonnull=1 ;;
 		gcc*3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
+		gcc*4.8*)
+			CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign"
+			CFLAGS="$CFLAGS -Wno-unused-result"
+			;;
 		gcc*4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
 		*LLVM*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
 		*) ;;
@@ -443,6 +442,7 @@ AC_CHECK_FUNCS([ \
 	closefrom \
 	dirfd \
 	dirname \
+	errc \
 	explicit_bzero \
 	fgetln \
 	freeaddrinfo \
@@ -463,6 +463,7 @@ AC_CHECK_FUNCS([ \
 	strmode \
 	sysconf \
 	waitpid \
+	warnc \
 ])
 
 # IRIX has a const char return value for gai_strerror()
@@ -501,7 +502,18 @@ AC_CHECK_DECLS([O_NONBLOCK], , ,
 #endif
 	])
 
-AC_CHECK_DECLS([SOCK_NONBLOCK SOCK_CLOEXEC], , , [#include <sys/socket.h>])
+AC_CHECK_DECLS([SOCK_NONBLOCK], , , [#include <sys/socket.h>])
+AC_CHECK_DECLS([SOCK_CLOEXEC], , , [#include <sys/socket.h>])
+AC_CHECK_DECLS([IP_RECVDSTADDR], , , [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+])
+AC_CHECK_DECLS([IP_RECVORIGDSTADDR], , , [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+])
 
 AC_CHECK_DECLS([writev], , , [
 #include <sys/types.h>

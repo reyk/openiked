@@ -30,7 +30,9 @@
 #if defined(HAVE_NETINET_IP_IPSP_H)
 #include <netinet/ip_ipsp.h>
 #endif
+#if defined(HAVE_NET_PFKEYV2_H)
 #include <net/pfkeyv2.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
@@ -253,7 +255,7 @@ pfkey_flow(int sd, uint8_t satype, uint8_t action, struct iked_flow *flow)
 		    __func__, flow->flow_src.addr_af);
 		return (-1);
 	}
-	smask.ss_len = ssrc.ss_len;
+	SET_STORAGE_LEN(smask, SS_LEN(ssrc));
 
 	bzero(&sdst, sizeof(sdst));
 	bzero(&dmask, sizeof(dmask));
@@ -463,7 +465,7 @@ pfkey_flow(int sd, uint8_t satype, uint8_t action, struct iked_flow *flow)
 	struct sadb_x_policy	 sa_policy, *sa_polid;
 	struct sadb_x_sa2	 sa_2;
 	struct sockaddr_storage  ssrc, sdst, slocal, speer;
-	struct iovec		 iov[10];
+	struct iovec		 iov[IOV_CNT];
 	int			 iov_cnt, ret = -1;
 	in_port_t		 sport, dport;
 	u_int8_t		 smask, dmask;
@@ -1164,11 +1166,11 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	sa_spirange.sadb_spirange_reserved = 0;
 
 	bzero(&sa_src, sizeof(sa_src));
-	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(ssrc.ss_len)) / 8;
+	sa_src.sadb_address_len = (sizeof(sa_src) + ROUNDUP(SS_LEN(&ssrc))) / 8;
 	sa_src.sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 
 	bzero(&sa_dst, sizeof(sa_dst));
-	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(sdst.ss_len)) / 8;
+	sa_dst.sadb_address_len = (sizeof(sa_dst) + ROUNDUP(SS_LEN(&sdst))) / 8;
 	sa_dst.sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 
 	iov_cnt = 0;
@@ -1189,7 +1191,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	iov[iov_cnt].iov_len = sizeof(sa_src);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &ssrc;
-	iov[iov_cnt].iov_len = ROUNDUP(ssrc.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&ssrc));
 	smsg.sadb_msg_len += sa_src.sadb_address_len;
 	iov_cnt++;
 
@@ -1198,7 +1200,7 @@ pfkey_sa_getspi(int sd, u_int8_t satype, struct iked_childsa *sa,
 	iov[iov_cnt].iov_len = sizeof(sa_dst);
 	iov_cnt++;
 	iov[iov_cnt].iov_base = &sdst;
-	iov[iov_cnt].iov_len = ROUNDUP(sdst.ss_len);
+	iov[iov_cnt].iov_len = ROUNDUP(SS_LEN(&sdst));
 	smsg.sadb_msg_len += sa_dst.sadb_address_len;
 	iov_cnt++;
 

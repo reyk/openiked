@@ -833,10 +833,10 @@ ikev2_init_ike_sa_peer(struct iked *env, struct iked_policy *pol,
 		if (socket_getaddr(sock->sock_fd, &ss) == -1)
 			goto done;
 	} else
-		memcpy(&ss, &pol->pol_local.addr, pol->pol_local.addr.ss_len);
+		memcpy(&ss, &pol->pol_local.addr, SS_LEN(&pol->pol_local.addr));
 
-	if ((buf = ikev2_msg_init(env, &req, &peer->addr, peer->addr.ss_len,
-	    &ss, ss.ss_len, 0)) == NULL)
+	if ((buf = ikev2_msg_init(env, &req, &peer->addr, SS_LEN(&peer->addr),
+	    &ss, SS_LEN(&ss), 0)) == NULL)
 		goto done;
 
 	/* Inherit the port from the 1st send socket */
@@ -5063,7 +5063,7 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 	case IKEV2_ID_IPV4:
 		s4 = (struct sockaddr_in *)buf;
 		s4->sin_family = AF_INET;
-		s4->sin_len = sizeof(*s4);
+		SET_STORAGE_LEN(*(struct sockaddr_storage *)s4, sizeof(*s4));
 		memcpy(&s4->sin_addr.s_addr, ptr, len);
 
 		if (print_host((struct sockaddr *)s4,
@@ -5087,7 +5087,7 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 	case IKEV2_ID_IPV6:
 		s6 = (struct sockaddr_in6 *)buf;
 		s6->sin6_family = AF_INET6;
-		s6->sin6_len = sizeof(*s6);
+		SET_STORAGE_LEN(*(struct sockaddr_storage *)s6, sizeof(*s6));
 		memcpy(&s6->sin6_addr, ptr, len);
 
 		if (print_host((struct sockaddr *)s6,
@@ -5181,7 +5181,7 @@ ikev2_cp_setaddr(struct iked *env, struct iked_sa *sa, sa_family_t family)
 		cfg4 = (struct sockaddr_in *)&ikecfg->cfg.address.addr;
 		in4 = (struct sockaddr_in *)&addr.addr;
 		in4->sin_family = AF_INET;
-		in4->sin_len = sizeof(*in4);
+		SET_STORAGE_LEN(*(struct sockaddr_storage *)in4, sizeof(*in4));
 		mask = prefixlen2mask(ikecfg->cfg.address.addr_mask);
 		lower = ntohl(cfg4->sin_addr.s_addr & ~mask);
 		key.sa_addrpool = &addr;
@@ -5190,7 +5190,7 @@ ikev2_cp_setaddr(struct iked *env, struct iked_sa *sa, sa_family_t family)
 		cfg6 = (struct sockaddr_in6 *)&ikecfg->cfg.address.addr;
 		in6 = (struct sockaddr_in6 *)&addr.addr;
 		in6->sin6_family = AF_INET6;
-		in6->sin6_len = sizeof(*in6);
+		SET_STORAGE_LEN(*(struct sockaddr_storage *)in6, sizeof(*in6));
 		/* truncate prefixlen to get a 32-bit space */
 		mask = (ikecfg->cfg.address.addr_mask >= 96)
 		    ? prefixlen2mask(ikecfg->cfg.address.addr_mask - 96)

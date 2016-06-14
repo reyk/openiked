@@ -46,13 +46,13 @@ socket_af(struct sockaddr *sa, in_port_t port)
 	switch (sa->sa_family) {
 	case AF_INET:
 		((struct sockaddr_in *)sa)->sin_port = port;
-		((struct sockaddr_in *)sa)->sin_len =
-		    sizeof(struct sockaddr_in);
+		SET_STORAGE_LEN((struct sockaddr_storage)sa,
+		    sizeof(struct sockaddr_in));
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)sa)->sin6_port = port;
-		((struct sockaddr_in6 *)sa)->sin6_len =
-		    sizeof(struct sockaddr_in6);
+		SET_STORAGE_LEN((struct sockaddr_storage)sa,
+		    sizeof(struct sockaddr_in6));
 		break;
 	default:
 		errno = EPFNOSUPPORT;
@@ -254,7 +254,7 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		}
 	}
 
-	if (bind(s, sa, sa->sa_len) == -1) {
+	if (bind(s, sa, SA_LEN(sa)) == -1) {
 		log_warn("%s: failed to bind UDP socket", __func__);
 		goto bad;
 	}
@@ -359,7 +359,7 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	if ((ret = recvmsg(s, &msg, 0)) == -1)
 		return (-1);
 
-	*fromlen = from->sa_len;
+	*fromlen = SA_LEN(from);
 	*tolen = 0;
 
 	if (getsockname(s, to, tolen) != 0)
@@ -373,7 +373,8 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 			    cmsg->cmsg_type == IP_RECVDSTADDR) {
 				in = (struct sockaddr_in *)to;
 				in->sin_family = AF_INET;
-				in->sin_len = *tolen = sizeof(*in);
+				SET_STORAGE_LEN(*(struct sockaddr_storage *)
+				    in, sizeof(*in));
 				memcpy(&in->sin_addr, CMSG_DATA(cmsg),
 				    sizeof(struct in_addr));
 			}
@@ -383,7 +384,8 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 			    cmsg->cmsg_type == IPV6_PKTINFO) {
 				in6 = (struct sockaddr_in6 *)to;
 				in6->sin6_family = AF_INET6;
-				in6->sin6_len = *tolen = sizeof(*in6);
+				SET_STORAGE_LEN(*(struct sockaddr_storage *)
+				    in6, sizeof(*in6));
 				pkt6 = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 				memcpy(&in6->sin6_addr, &pkt6->ipi6_addr,
 				    sizeof(struct in6_addr));
@@ -557,7 +559,7 @@ mask2prefixlen6(struct sockaddr *sa)
 	 * the possibly truncated sin6_addr struct.
 	 */
 	ap = (uint8_t *)&sa_in6->sin6_addr;
-	ep = (uint8_t *)sa_in6 + sa_in6->sin6_len;
+	ep = (uint8_t *)sa_in6 + SA_LEN((struct sockaddr *)sa_in6);
 	for (; ap < ep; ap++) {
 		/* this "beauty" is adopted from sbin/route/show.c ... */
 		switch (*ap) {
@@ -648,7 +650,7 @@ print_host(struct sockaddr *sa, char *buf, size_t len)
 		return (buf);
 	}
 
-	if (getnameinfo(sa, sa->sa_len,
+	if (getnameinfo(sa, SA_LEN(sa),
 	    buf, len, NULL, 0, NI_NUMERICHOST) != 0) {
 		buf[0] = '\0';
 		return (NULL);
