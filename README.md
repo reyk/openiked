@@ -53,7 +53,7 @@ also need GNU automake, autoconf (version 2.69 or newer) and libtool.
 `sh bootstrap` to generate the required build files.
 4. Run `./configure` in this directory to generate the Makefiles.
     - `./configure --help` will show you some available build options.
-    - For example, you can run the following when building on Apple OSX
+    - For example, you can run the following when building on Apple OS X
 with MacPorts:
 ```
     ./configure --with-ssl-dir=/opt/local/ \
@@ -76,6 +76,23 @@ on Linux.
 	# useradd -g _iked -c 'iked privsep' -d /var/empty -s /sbin/nologin _iked
 ```
 
+For creating system users on newer versions of Apple OS X, refer to
+the `dscl` command line utility, eg.
+```
+	# dscl . -list /Groups gid | sort -n -k 2
+	# dscl . -create /Groups/_iked gid 300
+	# dscl . -create /Groups/_iked RealName "OpenIKED"
+	# dscl . -create /Groups/_iked passwd "*"
+	# dscl . -list /Users UniqueID | sort -n -k 2
+	# dscl . -create /Users/_iked
+	# dscl . -create /Users/_iked NFSHomeDirectory /var/empty
+	# dscl . -create /Users/_iked uid 300
+	# dscl . -create /Users/_iked gid 300
+	# dscl . -create /Users/_iked UserShell /usr/bin/false
+	# dscl . -create /Users/_iked RealName "OpenIKED"
+	# dscl . -create /Users/_iked passwd "*"
+```
+
 8. On FreeBSD, NetBSD and maybe other BSD-variants IPsec is not
 enabled in the default GENERIC kernel.  You have to compile a custom
 kernel and enable options like `IPSEC`.  Please refer to the
@@ -89,7 +106,7 @@ Supported Platforms
 
 Original version:
 
-* OpenBSD 4.8 or newer
+* OpenBSD 6.0 or newer
 
 Portable version:
 
