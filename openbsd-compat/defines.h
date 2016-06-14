@@ -625,6 +625,21 @@ struct sadb_sa_natt {
 # define HAVE_GETADDRINFO
 #endif
 
+#ifndef HAVE_GETOPT_OPTRESET
+# undef getopt
+# undef opterr
+# undef optind
+# undef optopt
+# undef optreset
+# undef optarg
+# define getopt(ac, av, o)  BSDgetopt(ac, av, o)
+# define opterr             BSDopterr
+# define optind             BSDoptind
+# define optopt             BSDoptopt
+# define optreset           BSDoptreset
+# define optarg             BSDoptarg
+#endif
+
 #if defined(BROKEN_GETADDRINFO) && defined(HAVE_GETADDRINFO)
 # undef HAVE_GETADDRINFO
 #endif
