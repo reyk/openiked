@@ -2350,9 +2350,9 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 		 * so that it can be extracted for customer visiblity purposes
 		 */
 		log_info("LOG_SESSION: Secure session established to peer %s \
-		  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
-		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
-		  NULL, 0));
+		    local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		    NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
+		    NULL, 0));
 		timer_set(env, &sa->sa_timer, ikev2_ike_sa_alive, sa);
 		timer_add(env, &sa->sa_timer, IKED_IKE_SA_ALIVE_TIMEOUT);
 		timer_set(env, &sa->sa_rekey, ikev2_ike_sa_rekey, sa);
@@ -2365,9 +2365,9 @@ ikev2_resp_ike_auth(struct iked *env, struct iked_sa *sa)
 		ikev2_childsa_delete(env, sa, 0, 0, NULL, 1);
 	if (ret != 0) {
 		log_info("LOG_SESSION: Authentication failure in establishing \
-		  secure session from %s to peer %s",
-		  print_host((struct sockaddr *)&sa->sa_local.addr, NULL, 0),
-		  print_host((struct sockaddr *)&sa->sa_peer.addr, NULL, 0));
+		    secure session from %s to peer %s",
+		    print_host((struct sockaddr *)&sa->sa_local.addr, NULL, 0),
+		    print_host((struct sockaddr *)&sa->sa_peer.addr, NULL, 0));
 	}
 	ibuf_release(e);
 	return (ret);
@@ -2919,9 +2919,9 @@ ikev2_init_create_child_sa(struct iked *env, struct iked_message *msg)
 	ret = ikev2_childsa_enable(env, sa);
 	if ((ret == 0) && (csa)) {
 		log_info("LOG_SESSION: Rekeying secure session key peer %s \
-		  local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
-		  NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
-		  NULL, 0));
+		    local %s", print_host((struct sockaddr *)&sa->sa_peer.addr,
+		    NULL, 0), print_host((struct sockaddr *)&sa->sa_local.addr,
+		    NULL, 0));
 	}
 
 done:
