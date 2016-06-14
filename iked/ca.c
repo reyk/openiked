@@ -544,7 +544,8 @@ ca_reload(struct iked *env)
 	X509_OBJECT		*xo;
 	X509			*x509;
 	DIR			*dir;
-	int			 i, len, iovcnt = 0;
+	int			 i, iovcnt = 0;
+	unsigned int		 len;
 
 	/*
 	 * Load CAs

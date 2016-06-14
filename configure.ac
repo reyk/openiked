@@ -73,16 +73,17 @@ AC_CHECK_DECL([LLONG_MAX], [have_llong_max=1], , [#include <limits.h>])
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
-	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
+	GCC_VER=`$CC -v 2>&1 | grep  ' version '`
 	case $GCC_VER in
-		1.*) no_attrib_nonnull=1 ;;
-		2.8* | 2.9*)
+		gcc*1.*) no_attrib_nonnull=1 ;;
+		gcc*2.8* | gcc*2.9*)
 		     CFLAGS="$CFLAGS -Wsign-compare"
 		     no_attrib_nonnull=1
 		     ;;
-		2.*) no_attrib_nonnull=1 ;;
-		3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
-		4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
+		gcc*2.*) no_attrib_nonnull=1 ;;
+		gcc*3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
+		gcc*4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
+		*LLVM*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
 		*) ;;
 	esac
 

@@ -573,6 +573,7 @@ struct sadb_sa_natt {
 
 #if !defined(HAVE_ATTRIBUTE__BOUNDED__) && !defined(__bounded__)
 # define __bounded__(x, y, z...)
+# define HAVE_ATTRIBUTE__BOUNDED__	/* LibreSSL checks it again */
 #endif
 
 #if !defined(HAVE_ATTRIBUTE__NONNULL__) && !defined(__nonnull__)
