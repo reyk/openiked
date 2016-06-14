@@ -238,7 +238,11 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 
 	if (sa->sa_family == AF_INET) {
 		val = 1;
+#if HAVE_DECL_IP_RECVORIGDSTADDR
+		if (setsockopt(s, IPPROTO_IP, IP_RECVORIGDSTADDR,
+#elif HAVE_DECL_IP_RECVDSTADDR
 		if (setsockopt(s, IPPROTO_IP, IP_RECVDSTADDR,
+#endif
 		    &val, sizeof(int)) == -1) {
 			log_warn("%s: failed to set IPv4 packet info",
 			    __func__);
@@ -369,6 +373,7 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		switch (from->sa_family) {
 		case AF_INET:
+#if HAVE_DECL_IP_RECVDSTADDR
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_RECVDSTADDR) {
 				in = (struct sockaddr_in *)to;
@@ -378,6 +383,13 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 				memcpy(&in->sin_addr, CMSG_DATA(cmsg),
 				    sizeof(struct in_addr));
 			}
+#elif HAVE_DECL_IP_RECVORIGDSTADDR
+			if (cmsg->cmsg_level == IPPROTO_IP &&
+			    cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
+				in = (struct sockaddr_in *)to;
+				memcpy(in, CMSG_DATA(cmsg), sizeof(*in));
+			}
+#endif
 			break;
 		case AF_INET6:
 			if (cmsg->cmsg_level == IPPROTO_IPV6 &&

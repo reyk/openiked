@@ -347,14 +347,6 @@ struct	sockaddr_un {
 #define AF_LINK	AF_PACKET		/* XXX workaround on Linux */
 #endif
 
-#if defined(HAVE_DECL_IP_RECVDSTADDR) && HAVE_DECL_IP_RECVDSTADDR == 0
-#if defined(HAVE_DECL_IP_RECVORIGDSTADDR) && HAVE_DECL_IP_RECVORIGDSTADDR == 1
-#define IP_RECVDSTADDR IP_RECVORIGDSTADDR
-#else
-#error "IP_RECVDSTADDR not supported"
-#endif
-#endif
-
 #ifndef HAVE_IN_ADDR_T
 typedef u_int32_t	in_addr_t;
 #endif
