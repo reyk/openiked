@@ -1,4 +1,4 @@
-/*	$OpenBSD: imsg.c,v 1.2 2012/06/02 21:46:53 gilles Exp $	*/
+/*	$OpenBSD: imsg.c,v 1.13 2015/12/09 11:54:12 tb Exp $	*/
 
 /*
  * Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <openbsd-compat/sys-queue.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -36,7 +36,7 @@ void
 imsg_init(struct imsgbuf *ibuf, int fd)
 {
 	msgbuf_init(&ibuf->w);
-	bzero(&ibuf->r, sizeof(ibuf->r));
+	memset(&ibuf->r, 0, sizeof(ibuf->r));
 	ibuf->fd = fd;
 	ibuf->w.fd = fd;
 	ibuf->pid = getpid();
@@ -80,7 +80,8 @@ imsg_read(struct imsgbuf *ibuf)
 	int			 fd;
 	struct imsg_fd		*ifd;
 
-	bzero(&msg, sizeof(msg));
+	memset(&msg, 0, sizeof(msg));
+	memset(&cmsgbuf, 0, sizeof(cmsgbuf));
 
 	iov.iov_base = ibuf->r.buf + ibuf->r.wpos;
 	iov.iov_len = sizeof(ibuf->r.buf) - ibuf->r.wpos;
@@ -96,9 +97,10 @@ again:
 	if (available_fds(imsg_fd_overhead +
 	    (CMSG_SPACE(sizeof(int))-CMSG_SPACE(0))/sizeof(int))) {
 		errno = EAGAIN;
+		free(ifd);
 		return (-1);
 	}
-	
+
 	if ((n = recvmsg(ibuf->fd, &msg, 0)) == -1) {
 		if (errno == EMSGSIZE)
 			goto fail;
@@ -138,8 +140,7 @@ again:
 	}
 
 fail:
-	if (ifd)
-		free(ifd);
+	free(ifd);
 	return (n);
 }
 
@@ -163,7 +164,9 @@ imsg_get(struct imsgbuf *ibuf, struct imsg *imsg)
 		return (0);
 	datalen = imsg->hdr.len - IMSG_HEADER_SIZE;
 	ibuf->r.rptr = ibuf->r.buf + IMSG_HEADER_SIZE;
-	if ((imsg->data = malloc(datalen)) == NULL)
+	if (datalen == 0)
+		imsg->data = NULL;
+	else if ((imsg->data = malloc(datalen)) == NULL)
 		return (-1);
 
 	if (imsg->hdr.flags & IMSGF_HASFD)
@@ -185,7 +188,7 @@ imsg_get(struct imsgbuf *ibuf, struct imsg *imsg)
 
 int
 imsg_compose(struct imsgbuf *ibuf, u_int32_t type, u_int32_t peerid,
-    pid_t pid, int fd, void *data, u_int16_t datalen)
+    pid_t pid, int fd, const void *data, u_int16_t datalen)
 {
 	struct ibuf	*wbuf;
 
@@ -255,7 +258,7 @@ imsg_create(struct imsgbuf *ibuf, u_int32_t type, u_int32_t peerid,
 }
 
 int
-imsg_add(struct ibuf *msg, void *data, u_int16_t datalen)
+imsg_add(struct ibuf *msg, const void *data, u_int16_t datalen)
 {
 	if (datalen)
 		if (ibuf_add(msg, data, datalen) == -1) {
@@ -307,7 +310,7 @@ int
 imsg_flush(struct imsgbuf *ibuf)
 {
 	while (ibuf->w.queued)
-		if (msgbuf_write(&ibuf->w) < 0)
+		if (msgbuf_write(&ibuf->w) <= 0)
 			return (-1);
 	return (0);
 }
