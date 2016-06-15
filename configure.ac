@@ -82,7 +82,9 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 			CFLAGS="$CFLAGS -Wno-unused-result"
 			;;
 		gcc*4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
-		*LLVM*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
+		*LLVM*|*clang*)
+			CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign"
+			;;
 		*) ;;
 	esac
 
@@ -139,6 +141,7 @@ AC_CHECK_HEADERS([\
 	getopt.h \
 	libkern/OSByteOrder.h \
 	ndir.h \
+	sys/types.h \
 	sys/cdefs.h \
 	sys/endian.h \
 	sys/ndir.h \
@@ -147,7 +150,6 @@ AC_CHECK_HEADERS([\
 	sys/socket.h \
 	sys/stat.h \
 	sys/sysctl.h \
-	sys/types.h \
 	sys/uio.h \
 	sys/un.h \
 	sys/wait.h \
@@ -175,6 +177,9 @@ AC_CHECK_HEADERS([\
 	unistd.h \
 	vis.h \
 ], , , [
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
 #ifdef HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif
