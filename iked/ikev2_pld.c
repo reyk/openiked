@@ -1537,8 +1537,7 @@ ikev2_pld_ts(struct iked *env, struct ikev2_payload *pld,
 	struct ikev2_tsp		 tsp;
 	struct ikev2_ts			 ts;
 	size_t				 len, i;
-	struct sockaddr_in		 s4;
-	struct sockaddr_in6		 s6;
+	struct sockaddr_storage		 ss;
 	uint8_t				 buf[2][128];
 	uint8_t				*msgbuf = ibuf_data(msg->msg_data);
 
@@ -1561,36 +1560,33 @@ ikev2_pld_ts(struct iked *env, struct ikev2_payload *pld,
 		    betoh16(ts.ts_startport),
 		    betoh16(ts.ts_endport));
 
+		bzero(&ss, sizeof(ss));
 		switch (ts.ts_type) {
 		case IKEV2_TS_IPV4_ADDR_RANGE:
-			bzero(&s4, sizeof(s4));
-			s4.sin_family = AF_INET;
-			SET_STORAGE_LEN((struct sockaddr_storage)s4,
-			    sizeof(s4));
-			memcpy(&s4.sin_addr.s_addr,
+			ss.ss_family = AF_INET;
+			SET_SS_LEN(&ss, sizeof(struct sockaddr_in));
+			memcpy(&((struct sockaddr_in *)&ss)->sin_addr,
 			    msgbuf + offset + sizeof(ts), 4);
-			print_host((struct sockaddr *)&s4,
-			    (char *)buf[0], sizeof(buf[0]));
-			memcpy(&s4.sin_addr.s_addr,
+			print_host((struct sockaddr *)&ss, (char *)buf[0],
+			    sizeof(buf[0]));
+			memcpy(&((struct sockaddr_in *)&ss)->sin_addr,
 			    msgbuf + offset + sizeof(ts) + 4, 4);
-			print_host((struct sockaddr *)&s4,
-			    (char *)buf[1], sizeof(buf[1]));
+			print_host((struct sockaddr *)&ss, (char *)buf[1],
+			    sizeof(buf[1]));
 			log_debug("%s: start %s end %s", __func__,
 			    buf[0], buf[1]);
 			break;
 		case IKEV2_TS_IPV6_ADDR_RANGE:
-			bzero(&s6, sizeof(s6));
-			s6.sin6_family = AF_INET6;
-			SET_STORAGE_LEN((struct sockaddr_storage)s6,
-			    sizeof(s6));
-			memcpy(&s6.sin6_addr,
+			ss.ss_family = AF_INET6;
+			SET_SS_LEN(&ss, sizeof(struct sockaddr_in6));
+			memcpy(&((struct sockaddr_in6 *)&ss)->sin6_addr,
 			    msgbuf + offset + sizeof(ts), 16);
-			print_host((struct sockaddr *)&s6,
-			    (char *)buf[0], sizeof(buf[0]));
-			memcpy(&s6.sin6_addr,
+			print_host((struct sockaddr *)&ss, (char *)buf[0],
+			    sizeof(buf[0]));
+			memcpy(&((struct sockaddr_in6 *)&ss)->sin6_addr,
 			    msgbuf + offset + sizeof(ts) + 16, 16);
-			print_host((struct sockaddr *)&s6,
-			    (char *)buf[1], sizeof(buf[1]));
+			print_host((struct sockaddr *)&ss, (char *)buf[1],
+			    sizeof(buf[1]));
 			log_debug("%s: start %s end %s", __func__,
 			    buf[0], buf[1]);
 			break;

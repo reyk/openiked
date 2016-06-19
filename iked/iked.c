@@ -205,6 +205,7 @@ parent_configure(struct iked *env)
 
 	bzero(&ss, sizeof(ss));
 	ss.ss_family = AF_INET;
+	SET_SS_LEN(&ss, sizeof(struct sockaddr_in));
 
 	if ((env->sc_opts & IKED_OPT_NATT) == 0)
 		config_setsocket(env, &ss, ntohs(IKED_IKE_PORT), PROC_IKEV2);
@@ -213,6 +214,7 @@ parent_configure(struct iked *env)
 
 	bzero(&ss, sizeof(ss));
 	ss.ss_family = AF_INET6;
+	SET_SS_LEN(&ss, sizeof(struct sockaddr_in6));
 
 	if ((env->sc_opts & IKED_OPT_NATT) == 0)
 		config_setsocket(env, &ss, ntohs(IKED_IKE_PORT), PROC_IKEV2);

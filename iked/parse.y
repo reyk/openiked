@@ -289,7 +289,6 @@ struct ipsec_addr_wrap {
 	struct sockaddr_storage	 address;
 	uint8_t			 mask;
 	int			 netaddress;
-	sa_family_t		 af;
 	unsigned int		 type;
 	unsigned int		 action;
 	char			*name;
@@ -488,7 +487,8 @@ ikecfgvals	: cfg				{ $$ = $1; }
 cfg		: CONFIG STRING host_spec	{
 			const struct ipsec_xf	*xf;
 
-			if ((xf = parse_xf($2, $3->af, cpxfs)) == NULL) {
+			xf = parse_xf($2, $3->address.ss_family, cpxfs);
+			if (xf == NULL) {
 				yyerror("not a valid ikecfg option");
 				free($2);
 				free($3);
@@ -672,8 +672,9 @@ host_spec	: STRING			{
 
 host		: host_spec			{ $$ = $1; }
 		| host_spec '(' host_spec ')'   {
-			if (($1->af != AF_UNSPEC) && ($3->af != AF_UNSPEC) &&
-			    ($3->af != $1->af)) {
+			if (($1->address.ss_family != AF_UNSPEC) &&
+			    ($3->address.ss_family != AF_UNSPEC) &&
+			    ($3->address.ss_family != $1->address.ss_family)) {
 				yyerror("Flow NAT address family mismatch");
 				YYERROR;
 			}
@@ -1761,8 +1762,9 @@ host_v6(const char *s, int prefixlen)
 	ipa = calloc(1, sizeof(struct ipsec_addr_wrap));
 	if (ipa == NULL)
 		err(1, "host_v6: calloc");
-	ipa->af = res->ai_family;
 	memcpy(&ipa->address, res->ai_addr, sizeof(struct sockaddr_in6));
+	ipa->address.ss_family = res->ai_family;
+	SET_SS_LEN(&ipa->address, sizeof(struct sockaddr_in6));
 	if (prefixlen > 128)
 		prefixlen = 128;
 	ipa->next = NULL;
@@ -1809,14 +1811,13 @@ host_v4(const char *s, int mask)
 	if (ipa == NULL)
 		err(1, "host_v4: calloc");
 
-	ina.sin_family = AF_INET;
-	SET_STORAGE_LEN((struct sockaddr_storage)ina, sizeof(ina));
 	memcpy(&ipa->address, &ina, sizeof(ina));
+	ipa->address.ss_family = AF_INET;
+	SET_SS_LEN(&ipa->address, sizeof(ina));
 
 	ipa->name = strdup(s);
 	if (ipa->name == NULL)
 		err(1, "host_v4: strdup");
-	ipa->af = AF_INET;
 	ipa->next = NULL;
 	ipa->tail = ipa;
 
@@ -1832,7 +1833,7 @@ host_dns(const char *s, int mask)
 {
 	struct ipsec_addr_wrap	*ipa = NULL, *head = NULL;
 	struct addrinfo		 hints, *res0, *res;
-	int			 error;
+	int			 error, sslen;
 	char			 hbuf[NI_MAXHOST];
 
 	bzero(&hints, sizeof(struct addrinfo));
@@ -1852,22 +1853,26 @@ host_dns(const char *s, int mask)
 			err(1, "host_dns: calloc");
 		switch (res->ai_family) {
 		case AF_INET:
-			memcpy(&ipa->address, res->ai_addr,
-			    sizeof(struct sockaddr_in));
+			sslen = sizeof(struct sockaddr_in);
 			break;
 		case AF_INET6:
-			memcpy(&ipa->address, res->ai_addr,
-			    sizeof(struct sockaddr_in6));
+			sslen = sizeof(struct sockaddr_in6);
+			break;
+		default:
+			sslen = 0;
 			break;
 		}
-		error = getnameinfo(res->ai_addr, res->ai_addrlen, hbuf,
-		    sizeof(hbuf), NULL, 0, NI_NUMERICHOST);
+		if (sslen > 0)
+			memcpy(&ipa->address, res->ai_addr, sslen);
+		ipa->address.ss_family = res->ai_family;
+		SET_SS_LEN(&ipa->address, sslen);
+		error = getnameinfo((struct sockaddr *)&ipa->address, sslen,
+		    hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST);
 		if (error)
 			err(1, "host_dns: getnameinfo");
 		ipa->name = strdup(hbuf);
 		if (ipa->name == NULL)
 			err(1, "host_dns: strdup");
-		ipa->af = res->ai_family;
 		ipa->next = NULL;
 		ipa->tail = ipa;
 		if (head == NULL)
@@ -1883,7 +1888,7 @@ host_dns(const char *s, int mask)
 		 * have IPv6 address on a host, you cannot use dns/netmask
 		 * syntax.
 		 */
-		if (ipa->af == AF_INET)
+		if (ipa->address.ss_family == AF_INET)
 			set_ipmask(ipa, mask == -1 ? 32 : mask);
 		else
 			if (mask != -1)
@@ -1914,7 +1919,7 @@ host_any(void)
 	ipa = calloc(1, sizeof(struct ipsec_addr_wrap));
 	if (ipa == NULL)
 		err(1, "host_any: calloc");
-	ipa->af = AF_UNSPEC;
+	ipa->address.ss_family = AF_UNSPEC;
 	ipa->netaddress = 1;
 	ipa->tail = ipa;
 	return (ipa);
@@ -1943,15 +1948,16 @@ ifa_load(void)
 		n = calloc(1, sizeof(struct ipsec_addr_wrap));
 		if (n == NULL)
 			err(1, "ifa_load: calloc");
-		n->af = ifa->ifa_addr->sa_family;
+		n->address.ss_family = ifa->ifa_addr->sa_family;
+		SET_SS_LEN(&n->address, SA_LEN(ifa->ifa_addr));
 		if ((n->name = strdup(ifa->ifa_name)) == NULL)
 			err(1, "ifa_load: strdup");
-		if (n->af == AF_INET) {
+		if (n->address.ss_family == AF_INET) {
 			sa_in = (struct sockaddr_in *)ifa->ifa_addr;
 			memcpy(&n->address, sa_in, sizeof(*sa_in));
 			sa_in = (struct sockaddr_in *)ifa->ifa_netmask;
 			n->mask = mask2prefixlen((struct sockaddr *)sa_in);
-		} else if (n->af == AF_INET6) {
+		} else if (n->address.ss_family == AF_INET6) {
 			sa_in6 = (struct sockaddr_in6 *)ifa->ifa_addr;
 			memcpy(&n->address, sa_in6, sizeof(*sa_in6));
 			sa_in6 = (struct sockaddr_in6 *)ifa->ifa_netmask;
@@ -1997,8 +2003,8 @@ ifa_exists(const char *ifa_name)
 #endif
 
 	for (n = iftab; n; n = n->next) {
-		if (n->af == AF_LINK && !strncmp(n->name, ifa_name,
-		    IFNAMSIZ))
+		if (n->address.ss_family == AF_LINK &&
+		    !strncmp(n->name, ifa_name, IFNAMSIZ))
 			return (1);
 	}
 
@@ -2066,7 +2072,8 @@ ifa_lookup(const char *ifa_name)
 		return (n);
 
 	for (p = iftab; p; p = p->next) {
-		if (p->af != AF_INET && p->af != AF_INET6)
+		if (p->address.ss_family != AF_INET &&
+		    p->address.ss_family != AF_INET6)
 			continue;
 		if (strncmp(p->name, ifa_name, IFNAMSIZ))
 			continue;
@@ -2076,7 +2083,7 @@ ifa_lookup(const char *ifa_name)
 		memcpy(n, p, sizeof(struct ipsec_addr_wrap));
 		if ((n->name = strdup(p->name)) == NULL)
 			err(1, "ifa_lookup: strdup");
-		switch (n->af) {
+		switch (n->address.ss_family) {
 		case AF_INET:
 			set_ipmask(n, 32);
 			break;
@@ -2481,15 +2488,16 @@ create_ike(char *name, int af, uint8_t ipproto, struct ipsec_hosts *hosts,
 	}
 
 	if (peers && peers->src && peers->dst &&
-	    (peers->src->af != AF_UNSPEC) && (peers->dst->af != AF_UNSPEC) &&
-	    (peers->src->af != peers->dst->af))
+	    (peers->src->address.ss_family != AF_UNSPEC) &&
+	    (peers->dst->address.ss_family != AF_UNSPEC) &&
+	    (peers->src->address.ss_family != peers->dst->address.ss_family))
 		fatalx("create_ike: peer address family mismatch");
 
 	if (peers && (pol.pol_af != AF_UNSPEC) &&
-	    ((peers->src && (peers->src->af != AF_UNSPEC) &&
-	    (peers->src->af != pol.pol_af)) ||
-	    (peers->dst && (peers->dst->af != AF_UNSPEC) &&
-	    (peers->dst->af != pol.pol_af))))
+	    ((peers->src && (peers->src->address.ss_family != AF_UNSPEC) &&
+	    (peers->src->address.ss_family != pol.pol_af)) ||
+	    (peers->dst && (peers->dst->address.ss_family != AF_UNSPEC) &&
+	    (peers->dst->address.ss_family != pol.pol_af))))
 		fatalx("create_ike: policy address family mismatch");
 
 	ipa = ipb = NULL;
@@ -2524,20 +2532,20 @@ create_ike(char *name, int af, uint8_t ipproto, struct ipsec_hosts *hosts,
 	if (ipa) {
 		memcpy(&pol.pol_local.addr, &ipa->address,
 		    sizeof(ipa->address));
-		pol.pol_local.addr_af = ipa->af;
+		pol.pol_local.addr_af = ipa->address.ss_family;
 		pol.pol_local.addr_mask = ipa->mask;
 		pol.pol_local.addr_net = ipa->netaddress;
 		if (pol.pol_af == AF_UNSPEC)
-			pol.pol_af = ipa->af;
+			pol.pol_af = ipa->address.ss_family;
 	}
 	if (ipb) {
 		memcpy(&pol.pol_peer.addr, &ipb->address,
 		    sizeof(ipb->address));
-		pol.pol_peer.addr_af = ipb->af;
+		pol.pol_peer.addr_af = ipb->address.ss_family;
 		pol.pol_peer.addr_mask = ipb->mask;
 		pol.pol_peer.addr_net = ipb->netaddress;
 		if (pol.pol_af == AF_UNSPEC)
-			pol.pol_af = ipb->af;
+			pol.pol_af = ipb->address.ss_family;
 	}
 
 	if (ikelifetime)
@@ -2630,14 +2638,14 @@ create_ike(char *name, int af, uint8_t ipproto, struct ipsec_hosts *hosts,
 	    ipa = ipa->next, ipb = ipb->next, j++) {
 		memcpy(&flows[j].flow_src.addr, &ipa->address,
 		    sizeof(ipa->address));
-		flows[j].flow_src.addr_af = ipa->af;
+		flows[j].flow_src.addr_af = ipa->address.ss_family;
 		flows[j].flow_src.addr_mask = ipa->mask;
 		flows[j].flow_src.addr_net = ipa->netaddress;
 		flows[j].flow_src.addr_port = hosts->sport;
 
 		memcpy(&flows[j].flow_dst.addr, &ipb->address,
 		    sizeof(ipb->address));
-		flows[j].flow_dst.addr_af = ipb->af;
+		flows[j].flow_dst.addr_af = ipb->address.ss_family;
 		flows[j].flow_dst.addr_mask = ipb->mask;
 		flows[j].flow_dst.addr_net = ipb->netaddress;
 		flows[j].flow_dst.addr_port = hosts->dport;
@@ -2660,7 +2668,7 @@ create_ike(char *name, int af, uint8_t ipproto, struct ipsec_hosts *hosts,
 		    sizeof(ipa->address));
 		cfg->cfg.address.addr_mask = ipa->mask;
 		cfg->cfg.address.addr_net = ipa->netaddress;
-		cfg->cfg.address.addr_af = ipa->af;
+		cfg->cfg.address.addr_af = ipa->address.ss_family;
 	}
 
 	if (dstid) {

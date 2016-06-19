@@ -5028,8 +5028,7 @@ int
 ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 {
 	uint8_t				 buf[BUFSIZ], *ptr;
-	struct sockaddr_in		*s4;
-	struct sockaddr_in6		*s6;
+	struct sockaddr			*sa;
 	char				*str;
 	ssize_t				 len;
 	int				 i;
@@ -5061,13 +5060,11 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 
 	switch (id->id_type) {
 	case IKEV2_ID_IPV4:
-		s4 = (struct sockaddr_in *)buf;
-		s4->sin_family = AF_INET;
-		SET_STORAGE_LEN(*(struct sockaddr_storage *)s4, sizeof(*s4));
-		memcpy(&s4->sin_addr.s_addr, ptr, len);
-
-		if (print_host((struct sockaddr *)s4,
-		    idstr, idstrlen) == NULL)
+		sa = (struct sockaddr *)buf;
+		sa->sa_family = AF_INET;
+		SET_SA_LEN(sa, sizeof(struct sockaddr_in));
+		memcpy(&((struct sockaddr_in *)sa)->sin_addr, ptr, len);
+		if (print_host(sa, idstr, idstrlen) == NULL)
 			return (-1);
 		break;
 	case IKEV2_ID_FQDN:
@@ -5085,13 +5082,11 @@ ikev2_print_id(struct iked_id *id, char *idstr, size_t idstrlen)
 		free(str);
 		break;
 	case IKEV2_ID_IPV6:
-		s6 = (struct sockaddr_in6 *)buf;
-		s6->sin6_family = AF_INET6;
-		SET_STORAGE_LEN(*(struct sockaddr_storage *)s6, sizeof(*s6));
-		memcpy(&s6->sin6_addr, ptr, len);
-
-		if (print_host((struct sockaddr *)s6,
-		    idstr, idstrlen) == NULL)
+		sa = (struct sockaddr *)buf;
+		sa->sa_family = AF_INET6;
+		SET_SA_LEN(sa, sizeof(struct sockaddr_in6));
+		memcpy(&((struct sockaddr_in6 *)sa)->sin6_addr, ptr, len);
+		if (print_host(sa, idstr, idstrlen) == NULL)
 			return (-1);
 		break;
 	case IKEV2_ID_ASN1_DN:
@@ -5179,18 +5174,16 @@ ikev2_cp_setaddr(struct iked *env, struct iked_sa *sa, sa_family_t family)
 	switch (addr.addr_af) {
 	case AF_INET:
 		cfg4 = (struct sockaddr_in *)&ikecfg->cfg.address.addr;
-		in4 = (struct sockaddr_in *)&addr.addr;
-		in4->sin_family = AF_INET;
-		SET_STORAGE_LEN(*(struct sockaddr_storage *)in4, sizeof(*in4));
+		addr.addr.ss_family = AF_INET;
+		SET_SS_LEN(&addr.addr, sizeof(struct sockaddr_in));
 		mask = prefixlen2mask(ikecfg->cfg.address.addr_mask);
 		lower = ntohl(cfg4->sin_addr.s_addr & ~mask);
 		key.sa_addrpool = &addr;
 		break;
 	case AF_INET6:
 		cfg6 = (struct sockaddr_in6 *)&ikecfg->cfg.address.addr;
-		in6 = (struct sockaddr_in6 *)&addr.addr;
-		in6->sin6_family = AF_INET6;
-		SET_STORAGE_LEN(*(struct sockaddr_storage *)in6, sizeof(*in6));
+		addr.addr.ss_family = AF_INET6;
+		SET_SS_LEN(&addr.addr, sizeof(struct sockaddr_in6));
 		/* truncate prefixlen to get a 32-bit space */
 		mask = (ikecfg->cfg.address.addr_mask >= 96)
 		    ? prefixlen2mask(ikecfg->cfg.address.addr_mask - 96)
@@ -5215,11 +5208,14 @@ ikev2_cp_setaddr(struct iked *env, struct iked_sa *sa, sa_family_t family)
 		    __func__, mask, start, lower, host, upper);
 		switch (addr.addr_af) {
 		case AF_INET:
+			in4 = (struct sockaddr_in *)&addr.addr;
 			in4->sin_addr.s_addr =
 			    (cfg4->sin_addr.s_addr & mask) | htonl(host);
 			break;
 		case AF_INET6:
-			memcpy(in6, cfg6, sizeof(*in6));
+			in6 = (struct sockaddr_in6 *)&addr.addr;
+			memcpy(&in6->sin6_addr, &cfg6->sin6_addr,
+			    sizeof(in6->sin6_addr));
 			nhost = htonl(host);
 			memcpy(&in6->sin6_addr.s6_addr[12], &nhost,
 			    sizeof(uint32_t));
