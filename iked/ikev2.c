@@ -4709,9 +4709,7 @@ int
 ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 {
 	struct iked_childsa	*csa;
-#if defined (_INSTALL_IPSEC_POLICY)
 	struct iked_flow	*flow, *oflow;
-#endif
 
 	if (sa->sa_ipcomp && sa->sa_cpi_in && sa->sa_cpi_out &&
 	    ikev2_ipcomp_enable(env, sa) == -1)
@@ -4734,7 +4732,6 @@ ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 		    print_spi(csa->csa_spi.spi, csa->csa_spi.spi_size));
 	}
 
-#if defined (_INSTALL_IPSEC_POLICY)
 	TAILQ_FOREACH(flow, &sa->sa_flows, flow_entry) {
 		if (flow->flow_loaded)
 			continue;
@@ -4756,7 +4753,6 @@ ikev2_childsa_enable(struct iked *env, struct iked_sa *sa)
 
 		log_debug("%s: loaded flow %p", __func__, flow);
 	}
-#endif
 
 	return (0);
 }
