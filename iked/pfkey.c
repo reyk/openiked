@@ -255,7 +255,7 @@ pfkey_flow(int sd, uint8_t satype, uint8_t action, struct iked_flow *flow)
 		    __func__, flow->flow_src.addr_af);
 		return (-1);
 	}
-	SET_STORAGE_LEN(smask, SS_LEN(ssrc));
+	SET_SS_LEN(smask, SS_LEN(ssrc));
 
 	bzero(&sdst, sizeof(sdst));
 	bzero(&dmask, sizeof(dmask));
