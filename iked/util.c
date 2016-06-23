@@ -42,23 +42,23 @@ extern int	 verbose;
 int
 socket_af(struct sockaddr *sa, in_port_t port)
 {
+	u_int salen;
+
 	errno = 0;
 	switch (sa->sa_family) {
 	case AF_INET:
 		((struct sockaddr_in *)sa)->sin_port = port;
-		SET_STORAGE_LEN((struct sockaddr_storage)sa,
-		    sizeof(struct sockaddr_in));
+		salen = sizeof(struct sockaddr_in);
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)sa)->sin6_port = port;
-		SET_STORAGE_LEN((struct sockaddr_storage)sa,
-		    sizeof(struct sockaddr_in6));
+		salen = sizeof(struct sockaddr_in6);
 		break;
 	default:
 		errno = EPFNOSUPPORT;
 		return (-1);
 	}
-
+	SET_SA_LEN(sa, salen);
 	return (0);
 }
 
@@ -340,7 +340,6 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	struct msghdr		 msg;
 	struct cmsghdr		*cmsg;
 	struct in6_pktinfo	*pkt6;
-	struct sockaddr_in	*in;
 	struct sockaddr_in6	*in6;
 	ssize_t			 ret;
 	union {
@@ -376,28 +375,25 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 #if HAVE_DECL_IP_RECVDSTADDR
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_RECVDSTADDR) {
-				in = (struct sockaddr_in *)to;
-				in->sin_family = AF_INET;
-				SET_STORAGE_LEN(*(struct sockaddr_storage *)
-				    in, sizeof(*in));
-				memcpy(&in->sin_addr, CMSG_DATA(cmsg),
-				    sizeof(struct in_addr));
+				to->sa_family = AF_INET;
+				SET_SA_LEN(to, sizeof(struct sockaddr_in));
+				memcpy(&((struct sockaddr_in *)to)->sin_addr,
+				    CMSG_DATA(cmsg), sizeof(struct in_addr));
 			}
 #elif HAVE_DECL_IP_RECVORIGDSTADDR
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
-				in = (struct sockaddr_in *)to;
-				memcpy(in, CMSG_DATA(cmsg), sizeof(*in));
+				memcpy(to, CMSG_DATA(cmsg),
+				    sizeof(struct sockaddr_in));
 			}
 #endif
 			break;
 		case AF_INET6:
 			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
 			    cmsg->cmsg_type == IPV6_PKTINFO) {
+				to->sa_family = AF_INET6;
+				SET_SA_LEN(to, sizeof(struct sockaddr_in6));
 				in6 = (struct sockaddr_in6 *)to;
-				in6->sin6_family = AF_INET6;
-				SET_STORAGE_LEN(*(struct sockaddr_storage *)
-				    in6, sizeof(*in6));
 				pkt6 = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 				memcpy(&in6->sin6_addr, &pkt6->ipi6_addr,
 				    sizeof(struct in6_addr));

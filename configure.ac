@@ -1727,10 +1727,15 @@ AC_DEFINE_UNQUOTED([IKED_USER], ["$IKED_USER"],
 	[non-privileged user for privilege separation])
 AC_SUBST([IKED_USER])
 
+_prefix=`eval echo ${prefix}`
+if test x$_prefix = xNONE; then
+	_prefix=$ac_default_prefix
+fi
+
 _sysconfdir=`eval echo ${sysconfdir}`
 case $_sysconfdir in
 NONE/*)
-	_sysconfdir=`echo $_sysconfdir | sed "s~NONE~$ac_default_prefix~"` ;;
+	_sysconfdir=`echo $_sysconfdir | sed "s~NONE~$_prefix~"` ;;
 esac
 
 ikedconf=`eval echo ${_sysconfdir}/iked.conf`
@@ -2486,7 +2491,8 @@ if test "x$ZIP" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], [Path to ZIP binary])
 fi
 
-AC_DEFINE_UNQUOTED([PREFIX], ["$prefix"], [Root directory prefix])
+
+AC_DEFINE_UNQUOTED([PREFIX], ["$_prefix"], [Root directory prefix])
 
 AC_DEFINE([_GNU_SOURCE], [1], [Enable GNU Extensions])
 
