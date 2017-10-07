@@ -22,7 +22,7 @@ AC_CONFIG_HEADER([config.h])
 AC_CANONICAL_HOST
 AC_C_BIGENDIAN
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE()
 
 # Checks for programs.
 AC_PROG_CC
@@ -73,16 +73,18 @@ AC_CHECK_DECL([LLONG_MAX], [have_llong_max=1], , [#include <limits.h>])
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
-	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
+	GCC_VER=`$CC -v 2>&1 | grep  ' version '`
 	case $GCC_VER in
-		1.*) no_attrib_nonnull=1 ;;
-		2.8* | 2.9*)
-		     CFLAGS="$CFLAGS -Wsign-compare"
-		     no_attrib_nonnull=1
-		     ;;
-		2.*) no_attrib_nonnull=1 ;;
-		3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
-		4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
+		gcc*2.*) no_attrib_nonnull=1 ;;
+		gcc*3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
+		gcc*4.8*)
+			CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign"
+			CFLAGS="$CFLAGS -Wno-unused-result"
+			;;
+		gcc*4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
+		*LLVM*|*clang*)
+			CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign"
+			;;
 		*) ;;
 	esac
 
@@ -139,6 +141,18 @@ AC_CHECK_HEADERS([\
 	getopt.h \
 	libkern/OSByteOrder.h \
 	ndir.h \
+	sys/types.h \
+	sys/cdefs.h \
+	sys/endian.h \
+	sys/ndir.h \
+	sys/param.h \
+	sys/pstat.h \
+	sys/socket.h \
+	sys/stat.h \
+	sys/sysctl.h \
+	sys/uio.h \
+	sys/un.h \
+	sys/wait.h \
 	net/pfkeyv2.h \
 	linux/pfkeyv2.h \
 	linux/in.h \
@@ -158,22 +172,17 @@ AC_CHECK_HEADERS([\
 	stdio.h \
 	stdlib.h \
 	string.h \
-	sys/cdefs.h \
-	sys/endian.h \
-	sys/ndir.h \
-	sys/param.h \
-	sys/pstat.h \
-	sys/socket.h \
-	sys/stat.h \
-	sys/sysctl.h \
-	sys/types.h \
-	sys/uio.h \
-	sys/un.h \
-	sys/wait.h \
 	syslog.h \
 	ucred.h \
 	unistd.h \
 	vis.h \
+], , , [
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 ])
 
 # login_cap.h requires sys/types.h on NetBSD
@@ -428,6 +437,7 @@ else
 fi
 
 AC_CHECK_FUNCS([ \
+	accept4 \
 	arc4random \
 	arc4random_buf \
 	arc4random_uniform \
@@ -437,6 +447,8 @@ AC_CHECK_FUNCS([ \
 	closefrom \
 	dirfd \
 	dirname \
+	errc \
+	explicit_bzero \
 	fgetln \
 	freeaddrinfo \
 	getaddrinfo \
@@ -444,6 +456,8 @@ AC_CHECK_FUNCS([ \
 	getopt \
 	getpeereid \
 	memmove \
+	pledge \
+	realloc_array \
 	setproctitle \
 	setregid \
 	setreuid \
@@ -454,6 +468,7 @@ AC_CHECK_FUNCS([ \
 	strmode \
 	sysconf \
 	waitpid \
+	warnc \
 ])
 
 # IRIX has a const char return value for gai_strerror()
@@ -491,6 +506,19 @@ AC_CHECK_DECLS([O_NONBLOCK], , ,
 # include <fcntl.h>
 #endif
 	])
+
+AC_CHECK_DECLS([SOCK_NONBLOCK], , , [#include <sys/socket.h>])
+AC_CHECK_DECLS([SOCK_CLOEXEC], , , [#include <sys/socket.h>])
+AC_CHECK_DECLS([IP_RECVDSTADDR], , , [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+])
+AC_CHECK_DECLS([IP_RECVORIGDSTADDR], , , [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+])
 
 AC_CHECK_DECLS([writev], , , [
 #include <sys/types.h>
@@ -1699,10 +1727,15 @@ AC_DEFINE_UNQUOTED([IKED_USER], ["$IKED_USER"],
 	[non-privileged user for privilege separation])
 AC_SUBST([IKED_USER])
 
+_prefix=`eval echo ${prefix}`
+if test x$_prefix = xNONE; then
+	_prefix=$ac_default_prefix
+fi
+
 _sysconfdir=`eval echo ${sysconfdir}`
 case $_sysconfdir in
 NONE/*)
-	_sysconfdir=`echo $_sysconfdir | sed "s~NONE~$ac_default_prefix~"` ;;
+	_sysconfdir=`echo $_sysconfdir | sed "s~NONE~$_prefix~"` ;;
 esac
 
 ikedconf=`eval echo ${_sysconfdir}/iked.conf`
@@ -2458,7 +2491,8 @@ if test "x$ZIP" != "x"; then
 	AC_DEFINE_UNQUOTED([PATH_ZIP], ["$ZIP"], [Path to ZIP binary])
 fi
 
-AC_DEFINE_UNQUOTED([PREFIX], ["$prefix"], [Root directory prefix])
+
+AC_DEFINE_UNQUOTED([PREFIX], ["$_prefix"], [Root directory prefix])
 
 AC_DEFINE([_GNU_SOURCE], [1], [Enable GNU Extensions])
 

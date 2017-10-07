@@ -1,4 +1,4 @@
-/*	$OpenBSD: parser.h,v 1.12 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: parser.h,v 1.14 2015/11/02 10:27:44 jsg Exp $	*/
 
 /*
  * Copyright (c) 2007-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _IKECTL_PARSER_H
-#define _IKECTL_PARSER_H
+#ifndef IKECTL_PARSER_H
+#define IKECTL_PARSER_H
 
 enum actions {
 	NONE,
@@ -44,6 +44,7 @@ enum actions {
 	CA_CERT_CREATE,
 	CA_SERVER,
 	CA_CLIENT,
+	CA_OCSP,
 	CA_CERT_DELETE,
 	CA_CERT_INSTALL,
 	CA_CERT_EXPORT,
@@ -88,4 +89,4 @@ int		 ca_key_delete(struct ca *, char *);
 int		 ca_key_install(struct ca *, char *, char *);
 int		 ca_key_import(struct ca *, char *, char *);
 
-#endif /* _IKECTL_PARSER_H */
+#endif /* IKECTL_PARSER_H */

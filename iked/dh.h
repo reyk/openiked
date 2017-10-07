@@ -1,4 +1,4 @@
-/*	$OpenBSD: dh.h,v 1.5 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: dh.h,v 1.9 2015/08/21 11:59:27 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,18 +16,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _DH_H_
-#define _DH_H_
+#ifndef DH_GROUP_H
+#define DH_GROUP_H
 
 enum group_type {
-	GROUP_MODP	= 0,
-	GROUP_EC2N	= 1,
-	GROUP_ECP	= 2
+	GROUP_MODP		= 0,
+	GROUP_EC2N		= 1,
+	GROUP_ECP		= 2,
+	GROUP_CURVE25519	= 3
 };
 
 struct group_id {
 	enum group_type	 type;
-	u_int		 id;
+	unsigned int	 id;
 	int		 bits;
 	char		*prime;
 	char		*generator;
@@ -40,21 +41,22 @@ struct group {
 
 	void		*dh;
 	void		*ec;
+	void		*curve25519;
 
 	int		(*init)(struct group *);
 	int		(*getlen)(struct group *);
-	int		(*exchange)(struct group *, u_int8_t *);
-	int		(*shared)(struct group *, u_int8_t *, u_int8_t *);
+	int		(*exchange)(struct group *, uint8_t *);
+	int		(*shared)(struct group *, uint8_t *, uint8_t *);
 };
 
 #define DH_MAXSZ	1024	/* 8192 bits */
 
-void             group_init(void);
-void             group_free(struct group *);
-struct group	*group_get(u_int32_t);
+void		 group_init(void);
+void		 group_free(struct group *);
+struct group	*group_get(uint32_t);
 
 int		 dh_getlen(struct group *);
-int		 dh_create_exchange(struct group *, u_int8_t *);
-int		 dh_create_shared(struct group *, u_int8_t *, u_int8_t *);
+int		 dh_create_exchange(struct group *, uint8_t *);
+int		 dh_create_shared(struct group *, uint8_t *, uint8_t *);
 
-#endif /* _DH_H_ */
+#endif /* DH_GROUP_H */

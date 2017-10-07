@@ -1,4 +1,4 @@
-/*	$OpenBSD: ikectl.c,v 1.16 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: ikectl.c,v 1.23 2015/12/05 13:11:18 claudio Exp $	*/
 
 /*
  * Copyright (c) 2007-2013 Reyk Floeter <reyk@openbsd.org>
@@ -19,12 +19,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "openbsd-compat/sys-queue.h"
+
 #include <sys/un.h>
-#include "openbsd-compat/sys-tree.h"
+
 
 #include <err.h>
 #include <errno.h>
@@ -45,7 +44,7 @@ struct imsgname {
 	void (*func)(struct imsg *);
 };
 
-struct imsgname *monitor_lookup(u_int8_t);
+struct imsgname *monitor_lookup(uint8_t);
 void		 monitor_id(struct imsg *);
 int		 monitor(struct imsg *);
 
@@ -114,6 +113,7 @@ ca_opt(struct parse_result *res)
 	case CA_CERT_CREATE:
 	case CA_SERVER:
 	case CA_CLIENT:
+	case CA_OCSP:
 		ca_certificate(ca, res->host, res->htype, res->action);
 		break;
 	case CA_CERT_DELETE:
@@ -194,6 +194,7 @@ main(int argc, char *argv[])
 	case CA_CERT_CREATE:
 	case CA_CLIENT:
 	case CA_SERVER:
+	case CA_OCSP:
 	case CA_CERT_DELETE:
 	case CA_CERT_INSTALL:
 	case CA_CERT_EXPORT:
@@ -204,6 +205,9 @@ main(int argc, char *argv[])
 	case CA_KEY_DELETE:
 	case CA_KEY_INSTALL:
 	case CA_KEY_IMPORT:
+		if (pledge("stdio proc exec rpath wpath cpath fattr tty", NULL)
+		    == -1)
+			err(1, "pledge");
 		ca_opt(res);
 		break;
 	case NONE:
@@ -233,6 +237,9 @@ main(int argc, char *argv[])
 		}
 		err(1, "connect: %s", sock);
 	}
+
+	if (pledge("stdio", NULL) == -1)
+		err(1, "pledge");
 
 	if (res->ibuf != NULL)
 		ibuf = res->ibuf;
@@ -313,11 +320,11 @@ main(int argc, char *argv[])
 	}
 
 	while (ibuf->w.queued)
-		if (msgbuf_write(&ibuf->w) < 0)
+		if (msgbuf_write(&ibuf->w) <= 0 && errno != EAGAIN)
 			err(1, "write error");
 
 	while (!done) {
-		if ((n = imsg_read(ibuf)) == -1)
+		if ((n = imsg_read(ibuf)) == -1 && errno != EAGAIN)
 			errx(1, "imsg_read error");
 		if (n == 0)
 			errx(1, "pipe closed");
@@ -344,7 +351,7 @@ main(int argc, char *argv[])
 }
 
 struct imsgname *
-monitor_lookup(u_int8_t type)
+monitor_lookup(uint8_t type)
 {
 	int i;
 
@@ -366,7 +373,7 @@ monitor(struct imsg *imsg)
 	imn = monitor_lookup(imsg->hdr.type);
 	printf("%s: imsg type %u len %u peerid %u pid %d\n", imn->name,
 	    imsg->hdr.type, imsg->hdr.len, imsg->hdr.peerid, imsg->hdr.pid);
-	printf("\ttimestamp: %u, %s", now, ctime(&now));
+	printf("\ttimestamp: %lld, %s", (long long)now, ctime(&now));
 	if (imn->type == -1)
 		done = 1;
 	if (imn->func != NULL)

@@ -1,6 +1,8 @@
 sbin_PROGRAMS=	ikectl
 
-ikectl_SOURCES=	ikeca.c ikectl.c parser.c $(top_srcdir)/iked/log.c
+ikectl_SOURCES=	ikeca.c ikectl.c parser.c \
+		$(top_srcdir)/iked/log.c \
+		$(top_srcdir)/iked/util.c
 ikectl_CFLAGS=
 
 LIBCOMPAT=	$(top_builddir)/openbsd-compat/libopenbsd-compat.a

@@ -1,4 +1,4 @@
-/*	$OpenBSD: types.h,v 1.17 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: types.h,v 1.25 2016/01/27 20:20:30 gsoares Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -16,27 +16,32 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _IKED_TYPES_H
-#define _IKED_TYPES_H
+#ifndef IKED_TYPES_H
+#define IKED_TYPES_H
 
 #ifndef IKED_USER
-#define IKED_USER	"_iked"
+#define IKED_USER		"_iked"
 #endif
 
 #ifndef IKED_CONFIG
-#define IKED_CONFIG	"/etc/iked.conf"
+#define IKED_CONFIG		"/etc/iked.conf"
 #endif
-#define IKED_SOCKET	"/var/run/iked.sock"
+
+#define IKED_SOCKET		"/var/run/iked.sock"
 
 #ifndef IKED_CA
-#define IKED_CA		"/etc/iked/"
+#define IKED_CA			"/etc/iked/"
 #endif
-#define IKED_CA_DIR	"ca/"
-#define IKED_CRL_DIR	"crls/"
-#define IKED_CERT_DIR	"certs/"
-#define IKED_PUBKEY_DIR	"pubkeys/"
-#define IKED_PRIVKEY	IKED_CA "private/local.key"
-#define IKED_PUBKEY	"local.pub"
+
+#define IKED_CA_DIR		"ca/"
+#define IKED_CRL_DIR		"crls/"
+#define IKED_CERT_DIR		"certs/"
+#define IKED_PUBKEY_DIR		"pubkeys/"
+#define IKED_PRIVKEY		IKED_CA "private/local.key"
+#define IKED_PUBKEY		"local.pub"
+
+#define IKED_OCSP_RESPCERT	"ocsp/responder.crt"
+#define IKED_OCSP_ISSUER	"ocsp/issuer.crt"
 
 #define IKED_OPT_VERBOSE	0x00000001
 #define IKED_OPT_NOACTION	0x00000002
@@ -51,7 +56,7 @@
 #define IKED_NONCE_MIN		16	/* XXX 128 bits */
 #define IKED_NONCE_SIZE		32	/* XXX 256 bits */
 
-#define IKED_ID_SIZE		1024	/* XXX should be dynanic */
+#define IKED_ID_SIZE		1024	/* XXX should be dynamic */
 #define IKED_PSK_SIZE		1024	/* XXX should be dynamic */
 #define IKED_MSGBUF_MAX		8192
 #define IKED_CFG_MAX		16	/* maximum CP attributes */
@@ -65,17 +70,17 @@
 #define IKED_E			0x1000	/* Decrypted flag */
 
 struct iked_constmap {
-	u_int		 cm_type;
+	unsigned int	 cm_type;
 	const char	*cm_name;
 	const char	*cm_descr;
 };
 
 struct iked_transform {
-	u_int8_t			 xform_type;
-	u_int16_t			 xform_id;
-	u_int16_t			 xform_length;
-	u_int16_t			 xform_keylength;
-	u_int				 xform_score;
+	uint8_t				 xform_type;
+	uint16_t			 xform_id;
+	uint16_t			 xform_length;
+	uint16_t			 xform_keylength;
+	unsigned int			 xform_score;
 	struct iked_constmap		*xform_map;
 };
 
@@ -101,23 +106,17 @@ enum imsg_type {
 	IMSG_CERT,
 	IMSG_CERTVALID,
 	IMSG_CERTINVALID,
+	IMSG_OCSP_FD,
+	IMSG_OCSP_URL,
 	IMSG_AUTH
 };
 
 enum privsep_procid {
 	PROC_PARENT = 0,
-	PROC_IKEV1,
-	PROC_IKEV2,
+	PROC_CONTROL,
 	PROC_CERT,
+	PROC_IKEV2,
 	PROC_MAX
-};
-
-/* Attach the control socket to the following process */
-#define PROC_CONTROL	PROC_CERT
-
-enum blockmodes {
-	BM_NORMAL,
-	BM_NONBLOCK
 };
 
 enum flushmode {
@@ -133,4 +132,4 @@ enum flushmode {
 #define nitems(_a)   (sizeof((_a)) / sizeof((_a)[0]))
 #endif
 
-#endif /* _IKED_TYPES_H */
+#endif /* IKED_TYPES_H */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: util.c,v 1.18 2013/01/08 10:38:19 reyk Exp $	*/
+/*	$OpenBSD: util.c,v 1.30 2015/11/23 19:28:34 reyk Exp $	*/
 
 /*
  * Copyright (c) 2010-2013 Reyk Floeter <reyk@openbsd.org>
@@ -17,23 +17,17 @@
  */
 
 #include <sys/types.h>
-#include "openbsd-compat/sys-queue.h"
+
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-#include <net/if.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
 #include <netdb.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <event.h>
@@ -41,63 +35,62 @@
 #include "iked.h"
 #include "ikev2.h"
 
-void
-socket_set_blockmode(int fd, enum blockmodes bm)
-{
-	int	flags;
-
-	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
-		fatal("fcntl F_GETFL");
-
-	if (bm == BM_NONBLOCK)
-		flags |= O_NONBLOCK;
-	else
-		flags &= ~O_NONBLOCK;
-
-	if ((flags = fcntl(fd, F_SETFL, flags)) == -1)
-		fatal("fcntl F_SETFL");
-}
+/* log.c */
+extern int	 debug;
+extern int	 verbose;
 
 int
 socket_af(struct sockaddr *sa, in_port_t port)
 {
+	u_int salen;
+
 	errno = 0;
 	switch (sa->sa_family) {
 	case AF_INET:
 		((struct sockaddr_in *)sa)->sin_port = port;
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
-		((struct sockaddr_in *)sa)->sin_len =
-		    sizeof(struct sockaddr_in);
-#endif
+		salen = sizeof(struct sockaddr_in);
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)sa)->sin6_port = port;
-#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
-		((struct sockaddr_in6 *)sa)->sin6_len =
-		    sizeof(struct sockaddr_in6);
-#endif
+		salen = sizeof(struct sockaddr_in6);
 		break;
 	default:
 		errno = EPFNOSUPPORT;
 		return (-1);
 	}
-
+	SET_SA_LEN(sa, salen);
 	return (0);
 }
 
 in_port_t
-socket_getport(struct sockaddr_storage *ss)
+socket_getport(struct sockaddr *sa)
 {
-	switch (ss->ss_family) {
+	switch (sa->sa_family) {
 	case AF_INET:
-		return (ntohs(((struct sockaddr_in *)ss)->sin_port));
+		return (ntohs(((struct sockaddr_in *)sa)->sin_port));
 	case AF_INET6:
-		return (ntohs(((struct sockaddr_in6 *)ss)->sin6_port));
+		return (ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
 	default:
 		return (0);
 	}
 
 	/* NOTREACHED */
+	return (0);
+}
+
+int
+socket_setport(struct sockaddr *sa, in_port_t port)
+{
+	switch (sa->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)sa)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+		break;
+	default:
+		return (-1);
+	}
 	return (0);
 }
 
@@ -219,7 +212,8 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		return (-1);
 	}
 
-	if ((s = socket(sa->sa_family, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+	if ((s = bsd_socket(sa->sa_family,
+	    SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		log_warn("%s: failed to get UDP socket", __func__);
 		return (-1);
 	}
@@ -231,30 +225,23 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 		goto bad;
 	}
 
-#ifdef SO_REUSEPORT
 	val = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &val, sizeof(int)) == -1) {
 		log_warn("%s: failed to set reuseport", __func__);
 		goto bad;
 	}
-#endif
-#ifdef SO_REUSEADDR
 	val = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(int)) == -1) {
 		log_warn("%s: failed to set reuseaddr", __func__);
 		goto bad;
 	}
-#endif
 
 	if (sa->sa_family == AF_INET) {
 		val = 1;
-		if (setsockopt(s, IPPROTO_IP,
-#if defined(IP_RECVDSTADDR)
-		    IP_RECVDSTADDR,
-#elif defined(IP_PKTINFO)
-		    IP_PKTINFO,
-#else
-#error IPv4 packet info not supported
+#if HAVE_DECL_IP_RECVORIGDSTADDR
+		if (setsockopt(s, IPPROTO_IP, IP_RECVORIGDSTADDR,
+#elif HAVE_DECL_IP_RECVDSTADDR
+		if (setsockopt(s, IPPROTO_IP, IP_RECVDSTADDR,
 #endif
 		    &val, sizeof(int)) == -1) {
 			log_warn("%s: failed to set IPv4 packet info",
@@ -262,15 +249,6 @@ udp_bind(struct sockaddr *sa, in_port_t port)
 			goto bad;
 		}
 	} else {
-#ifdef IPV6_V6ONLY
-		val = 1;
-		if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-		    &val, sizeof(int)) == -1) {
-			log_warn("%s: failed to set IPv6-only mode",
-			    __func__);
-			goto bad;
-		}
-#endif
 		val = 1;
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 		    &val, sizeof(int)) == -1) {
@@ -296,7 +274,7 @@ sockaddr_cmp(struct sockaddr *a, struct sockaddr *b, int prefixlen)
 {
 	struct sockaddr_in	*a4, *b4;
 	struct sockaddr_in6	*a6, *b6;
-	u_int32_t		 av[4], bv[4], mv[4];
+	uint32_t		 av[4], bv[4], mv[4];
 
 	if (a->sa_family == AF_UNSPEC || b->sa_family == AF_UNSPEC)
 		return (0);
@@ -362,16 +340,12 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	struct msghdr		 msg;
 	struct cmsghdr		*cmsg;
 	struct in6_pktinfo	*pkt6;
-	struct sockaddr_in	*in;
 	struct sockaddr_in6	*in6;
 	ssize_t			 ret;
 	union {
 		struct cmsghdr hdr;
 		char	buf[CMSG_SPACE(sizeof(struct sockaddr_storage))];
 	} cmsgbuf;
-#if !defined(IP_RECVDSTADDR) && defined(IP_PKTINFO)
-	struct in_pktinfo	*pkt;
-#endif
 
 	bzero(&msg, sizeof(msg));
 	bzero(&cmsgbuf.buf, sizeof(cmsgbuf.buf));
@@ -398,41 +372,28 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		switch (from->sa_family) {
 		case AF_INET:
-#if defined(IP_RECVDSTADDR)
+#if HAVE_DECL_IP_RECVDSTADDR
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 			    cmsg->cmsg_type == IP_RECVDSTADDR) {
-				in = (struct sockaddr_in *)to;
-				in->sin_family = AF_INET;
-				in->sin_len = *tolen = sizeof(*in);
-				memcpy(&in->sin_addr, CMSG_DATA(cmsg),
-				    sizeof(struct in_addr));
+				to->sa_family = AF_INET;
+				SET_SA_LEN(to, sizeof(struct sockaddr_in));
+				memcpy(&((struct sockaddr_in *)to)->sin_addr,
+				    CMSG_DATA(cmsg), sizeof(struct in_addr));
 			}
-#elif defined(IP_PKTINFO)
+#elif HAVE_DECL_IP_RECVORIGDSTADDR
 			if (cmsg->cmsg_level == IPPROTO_IP &&
-			    cmsg->cmsg_type == IP_PKTINFO) {
-				in = (struct sockaddr_in *)to;
-				in->sin_family = AF_INET;
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
-				in->sin_len = *tolen = sizeof(*in);
-#else
-				*tolen = sizeof(*in);
-#endif
-				pkt = (struct in_pktinfo *)CMSG_DATA(cmsg);
-				memcpy(&in->sin_addr, &pkt->ipi_addr,
-				    sizeof(struct in_addr));
+			    cmsg->cmsg_type == IP_RECVORIGDSTADDR) {
+				memcpy(to, CMSG_DATA(cmsg),
+				    sizeof(struct sockaddr_in));
 			}
 #endif
 			break;
 		case AF_INET6:
 			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
 			    cmsg->cmsg_type == IPV6_PKTINFO) {
+				to->sa_family = AF_INET6;
+				SET_SA_LEN(to, sizeof(struct sockaddr_in6));
 				in6 = (struct sockaddr_in6 *)to;
-				in6->sin6_family = AF_INET6;
-#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
-				in6->sin6_len = *tolen = sizeof(*in6);
-#else
-				*tolen = sizeof(*in6);
-#endif
 				pkt6 = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 				memcpy(&in6->sin6_addr, &pkt6->ipi6_addr,
 				    sizeof(struct in6_addr));
@@ -448,7 +409,7 @@ recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from,
 }
 
 const char *
-print_spi(u_int64_t spi, int size)
+print_spi(uint64_t spi, int size)
 {
 	static char		 buf[IKED_CYCLE_BUFFERS][32];
 	static int		 i = 0;
@@ -457,8 +418,11 @@ print_spi(u_int64_t spi, int size)
 	ptr = buf[i];
 
 	switch (size) {
+	case 2:
+		snprintf(ptr, 32, "0x%04x", (uint16_t)spi);
+		break;
 	case 4:
-		snprintf(ptr, 32, "0x%08x", (u_int32_t)spi);
+		snprintf(ptr, 32, "0x%08x", (uint32_t)spi);
 		break;
 	case 8:
 		snprintf(ptr, 32, "0x%016llx", spi);
@@ -475,9 +439,9 @@ print_spi(u_int64_t spi, int size)
 }
 
 const char *
-print_map(u_int type, struct iked_constmap *map)
+print_map(unsigned int type, struct iked_constmap *map)
 {
-	u_int			 i;
+	unsigned int		 i;
 	static char		 buf[IKED_CYCLE_BUFFERS][32];
 	static int		 idx = 0;
 	const char		*name = NULL;
@@ -503,16 +467,16 @@ void
 lc_string(char *str)
 {
 	for (; *str != '\0'; str++)
-		*str = tolower(*str);
+		*str = tolower((unsigned char)*str);
 }
 
 void
-print_hex(u_int8_t *buf, off_t offset, size_t length)
+print_hex(uint8_t *buf, off_t offset, size_t length)
 {
-	u_int		 i;
+	unsigned int	 i;
 	extern int	 verbose;
 
-	if (verbose < 2 || !length)
+	if (verbose < 3 || !length)
 		return;
 
 	for (i = 0; i < length; i++) {
@@ -528,9 +492,9 @@ print_hex(u_int8_t *buf, off_t offset, size_t length)
 }
 
 void
-print_hexval(u_int8_t *buf, off_t offset, size_t length)
+print_hexval(uint8_t *buf, off_t offset, size_t length)
 {
-	u_int		 i;
+	unsigned int	 i;
 	extern int	 verbose;
 
 	if (verbose < 2 || !length)
@@ -543,12 +507,12 @@ print_hexval(u_int8_t *buf, off_t offset, size_t length)
 }
 
 const char *
-print_bits(u_short v, char *bits)
+print_bits(unsigned short v, unsigned char *bits)
 {
 	static char	 buf[IKED_CYCLE_BUFFERS][BUFSIZ];
 	static int	 idx = 0;
-	u_int		 i, any = 0, j = 0;
-	char		 c;
+	unsigned int	 i, any = 0, j = 0;
+	unsigned char	 c;
 
 	if (!bits)
 		return ("");
@@ -568,7 +532,7 @@ print_bits(u_short v, char *bits)
 			}
 			any = 1;
 			for (; (c = *bits) > 32; bits++) {
-				buf[idx][j++] = tolower(c);
+				buf[idx][j++] = tolower((unsigned char)c);
 				if (j >= sizeof(buf[idx]))
 					return (buf[idx]);
 			}
@@ -580,7 +544,7 @@ print_bits(u_short v, char *bits)
 	return (buf[idx]);
 }
 
-u_int8_t
+uint8_t
 mask2prefixlen(struct sockaddr *sa)
 {
 	struct sockaddr_in	*sa_in = (struct sockaddr_in *)sa;
@@ -592,18 +556,18 @@ mask2prefixlen(struct sockaddr *sa)
 		return (33 - ffs(ntohl(ina)));
 }
 
-u_int8_t
+uint8_t
 mask2prefixlen6(struct sockaddr *sa)
 {
 	struct sockaddr_in6	*sa_in6 = (struct sockaddr_in6 *)sa;
-	u_int8_t		 l = 0, *ap, *ep;
+	uint8_t			 l = 0, *ap, *ep;
 
 	/*
 	 * sin6_len is the size of the sockaddr so substract the offset of
 	 * the possibly truncated sin6_addr struct.
 	 */
-	ap = (u_int8_t *)&sa_in6->sin6_addr;
-	ep = (u_int8_t *)sa_in6 + SA_LEN(sa);
+	ap = (uint8_t *)&sa_in6->sin6_addr;
+	ep = (uint8_t *)sa_in6 + SA_LEN((struct sockaddr *)sa_in6);
 	for (; ap < ep; ap++) {
 		/* this "beauty" is adopted from sbin/route/show.c ... */
 		switch (*ap) {
@@ -641,8 +605,8 @@ mask2prefixlen6(struct sockaddr *sa)
 	return (l);
 }
 
-u_int32_t
-prefixlen2mask(u_int8_t prefixlen)
+uint32_t
+prefixlen2mask(uint8_t prefixlen)
 {
 	if (prefixlen == 0)
 		return (0);
@@ -654,7 +618,7 @@ prefixlen2mask(u_int8_t prefixlen)
 }
 
 struct in6_addr *
-prefixlen2mask6(u_int8_t prefixlen, u_int32_t *mask)
+prefixlen2mask6(uint8_t prefixlen, uint32_t *mask)
 {
 	static struct in6_addr  s6;
 	int			i;
@@ -675,7 +639,7 @@ prefixlen2mask6(u_int8_t prefixlen, u_int32_t *mask)
 }
 
 const char *
-print_host(struct sockaddr_storage *ss, char *buf, size_t len)
+print_host(struct sockaddr *sa, char *buf, size_t len)
 {
 	static char	sbuf[IKED_CYCLE_BUFFERS][NI_MAXHOST + 7];
 	static int	idx = 0;
@@ -689,18 +653,18 @@ print_host(struct sockaddr_storage *ss, char *buf, size_t len)
 			idx = 0;
 	}
 
-	if (ss->ss_family == AF_UNSPEC) {
+	if (sa->sa_family == AF_UNSPEC) {
 		strlcpy(buf, "any", len);
 		return (buf);
 	}
 
-	if (getnameinfo((struct sockaddr *)ss, SS_LEN(ss),
+	if (getnameinfo(sa, SA_LEN(sa),
 	    buf, len, NULL, 0, NI_NUMERICHOST) != 0) {
 		buf[0] = '\0';
 		return (NULL);
 	}
 
-	if ((port = socket_getport(ss)) != 0) {
+	if ((port = socket_getport(sa)) != 0) {
 		snprintf(pbuf, sizeof(pbuf), ":%d", port);
 		(void)strlcat(buf, pbuf, len);
 	}
@@ -709,24 +673,19 @@ print_host(struct sockaddr_storage *ss, char *buf, size_t len)
 }
 
 char *
-get_string(u_int8_t *ptr, size_t len)
+get_string(uint8_t *ptr, size_t len)
 {
 	size_t	 i;
-	char	*str;
 
 	for (i = 0; i < len; i++)
-		if (!isprint((char)ptr[i]))
+		if (!isprint(ptr[i]))
 			break;
 
-	if ((str = calloc(1, i + 1)) == NULL)
-		return (NULL);
-	memcpy(str, ptr, i);
-
-	return (str);
+	return strndup(ptr, i);
 }
 
 const char *
-print_proto(u_int8_t proto)
+print_proto(uint8_t proto)
 {
 	struct protoent *p;
 	static char	 buf[IKED_CYCLE_BUFFERS][BUFSIZ];
@@ -777,10 +736,10 @@ expand_string(char *label, size_t len, const char *srch, const char *repl)
 	return (0);
 }
 
-u_int8_t *
+uint8_t *
 string2unicode(const char *ascii, size_t *outlen)
 {
-	u_int8_t	*uc = NULL;
+	uint8_t		*uc = NULL;
 	size_t		 i, len = strlen(ascii);
 
 	if ((uc = calloc(1, (len * 2) + 2)) == NULL)
@@ -793,4 +752,28 @@ string2unicode(const char *ascii, size_t *outlen)
 	*outlen = len * 2;
 
 	return (uc);
+}
+
+void
+print_debug(const char *emsg, ...)
+{
+	va_list	 ap;
+
+	if (debug && verbose > 2) {
+		va_start(ap, emsg);
+		vfprintf(stderr, emsg, ap);
+		va_end(ap);
+	}
+}
+
+void
+print_verbose(const char *emsg, ...)
+{
+	va_list	 ap;
+
+	if (verbose) {
+		va_start(ap, emsg);
+		vfprintf(stderr, emsg, ap);
+		va_end(ap);
+	}
 }

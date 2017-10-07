@@ -72,6 +72,14 @@
 # endif
 #endif
 
+#if !defined(SET_SA_LEN)
+# if defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
+#  define SET_SA_LEN(sa, len)	((sa)->sa_len = (len))
+# else
+#  define SET_SA_LEN(sa, len)	(void)0
+# endif
+#endif
+
 /* From OpenBGPD portable */
 #if !defined(SS_LEN)
 # if defined(HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN)
@@ -81,17 +89,13 @@
 # endif
 #endif
 
-#ifdef HAVE_SS_LEN
-# define STORAGE_LEN(X) ((X).ss_len)
-# define SET_STORAGE_LEN(X, Y) do { STORAGE_LEN(X) = (Y); } while(0)
-#elif defined(HAVE___SS_LEN)
-# define STORAGE_LEN(X) ((X).__ss_len)
-# define SET_STORAGE_LEN(X, Y) do { STORAGE_LEN(X) = (Y); } while(0)
-#else
-# define STORAGE_LEN(X) (STORAGE_FAMILY(X) == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))
-# define SET_STORAGE_LEN(X, Y) (void) 0
+#if !defined(SET_SS_LEN)
+# if defined(HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN)
+#  define SET_SS_LEN(ss, len)	((ss)->ss_len = (len))
+# else
+#  define SET_SS_LEN(ss, len)	SET_SA_LEN((struct sockaddr *)(ss), len)
+# endif
 #endif
-
 
 #ifndef HAVE_CLOSEFROM
 void closefrom(int);
@@ -177,6 +181,28 @@ int scan_scaled(char *scaled, long long *result);
 int fmt_scaled(long long number, char *result);
 #endif
 
-void seed_rng(void);
+#ifndef HAVE_REALLOCARRAY
+void *reallocarray(void *, size_t , size_t);
+#endif
+
+#ifndef HAVE_EXPLICIT_BZERO
+void explicit_bzero(void *buf, size_t len);
+#endif
+
+#ifndef HAVE_PLEDGE
+int pledge(const char *promises, const char *paths[]);
+#endif
+
+#ifndef HAVE_ERRC
+void errc(int eval, int code, const char *fmt, ...);
+#endif
+
+#ifndef HAVE_WARNC
+void warnc(int code, const char *fmt, ...);
+#endif
+
+int bsd_socket(int domain, int type, int protocol);
+int bsd_socketpair(int d, int type, int protocol, int sv[2]);
+int bsd_accept4(int s, struct sockaddr *addr, socklen_t *addrlen, int flags);
 
 #endif /* _OPENBSD_COMPAT_H */

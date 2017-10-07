@@ -3,20 +3,23 @@ sbin_PROGRAMS=		iked
 iked_MAPS=		eap_map.c ikev2_map.c
 iked_MAPS_IN=		eap.h ikev2.h
 iked_SOURCES=		ca.c chap_ms.c config.c control.c crypto.c dh.c \
-			eap.c iked.c ikev1.c ikev2.c ikev2_msg.c ikev2_pld.c \
-			log.c policy.c proc.c timer.c util.c imsg_util.c \
+			eap.c iked.c ikev2.c ikev2_msg.c ikev2_pld.c \
+			log.c ocsp.c policy.c proc.c \
+			timer.c util.c imsg_util.c \
 			parse.y $(iked_MAPS)
-iked_CFLAGS=
+iked_CPPFLAGS=		-include $(top_srcdir)/openbsd-compat/includes.h
 
 libpfkey_a_SOURCES=	pfkey.c
-libpfkey_a_CPPFLAGS=	@PFKEY_CPPFLAGS@
+libpfkey_a_CPPFLAGS=	@PFKEY_CPPFLAGS@ $(iked_CPPFLAGS)
 
-noinst_LIBRARIES=	libpfkey.a
+libcurve25519_a_SOURCES=smult_curve25519_ref.c 
+libcurve25519_a_CPPFLAGS=
+
+noinst_LIBRARIES=	libpfkey.a libcurve25519.a
 
 LIBCOMPAT=	$(top_builddir)/openbsd-compat/libopenbsd-compat.a
-LDADD=		$(LIBCOMPAT) libpfkey.a
-CPPFLAGS=	-include $(top_srcdir)/openbsd-compat/includes.h \
-		-I$(top_srcdir)/openbsd-compat \
+LDADD=		$(LIBCOMPAT) libpfkey.a libcurve25519.a
+CPPFLAGS=	-I$(top_srcdir)/openbsd-compat \
 		-I$(srcdir) @CPPFLAGS@ @DEFS@
 MANPAGES=	iked.8.out iked.conf.5.out
 MANPAGES_IN=	iked.8 iked.conf.5

@@ -36,7 +36,7 @@
 #if defined(HAVE_DECL_SHUT_RD) && HAVE_DECL_SHUT_RD == 0
 enum
 {
-  SHUT_RD = 0,		/* No more receptions.  */
+  SHUT_RD = 0,		/* No more receptions.	*/
   SHUT_WR,			/* No more transmissions.  */
   SHUT_RDWR			/* No more receptions or transmissions.  */
 };
@@ -46,17 +46,23 @@ enum
 #endif
 
 #ifndef IPTOS_LOWDELAY
-# define IPTOS_LOWDELAY          0x10
-# define IPTOS_THROUGHPUT        0x08
-# define IPTOS_RELIABILITY       0x04
-# define IPTOS_LOWCOST           0x02
-# define IPTOS_MINCOST           IPTOS_LOWCOST
+# define IPTOS_LOWDELAY		 0x10
+# define IPTOS_THROUGHPUT	 0x08
+# define IPTOS_RELIABILITY	 0x04
+# define IPTOS_LOWCOST		 0x02
+# define IPTOS_MINCOST		 IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
 
 #if !defined(HAVE_NETINET_IP_IPSP_H) && (defined(HAVE_NETINET6_IPSEC_H) || \
     defined(HAVE_NETIPSEC_IPSEC_H) || defined(HAVE_LINUX_IPSEC_H))
 #define IPSP_DIRECTION_IN	IPSEC_DIR_INBOUND
 #define IPSP_DIRECTION_OUT	IPSEC_DIR_OUTBOUND	/* XXX Linux: _FWD? */
+#ifndef CPI_PRIVATE_MIN
+#define CPI_PRIVATE_MIN		61440
+#endif
+#ifndef CPI_PRIVATE_MAX
+#define CPI_PRIVATE_MAX		65535
+#endif
 #endif
 
 #if defined(HAVE_NET_PFKEYV2_H) || defined(HAVE_LINUX_PFKEYV2_H)
@@ -83,26 +89,12 @@ enum
 # ifdef _POSIX_PATH_MAX
 # define PATH_MAX _POSIX_PATH_MAX
 # else
-# define PATH_MAX 64
+# define PATH_MAX 256
 # endif
-#endif
-
-/*
- * Looks like ugly, but MAX_IMSGSIZE equals 16384,
- * and if we don't care it will overflow for some struct
- */
-#if PATH_MAX > 1024
-#  undef    PATH_MAX
-#  define PATH_MAX 1024
 #endif
 
 #ifndef MAXPATHLEN
 #  define MAXPATHLEN PATH_MAX
-#endif
-
-#if MAXPATHLEN > 1024
-#  undef  MAXPATHLEN
-#  define MAXPATHLEN 1024
 #endif
 
 #if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
@@ -110,17 +102,17 @@ enum
 #endif
 
 #ifndef MAXLOGNAME
-#define MAXLOGNAME      LOGIN_NAME_MAX
+#define MAXLOGNAME	LOGIN_NAME_MAX
 #endif
 
 #ifndef STDIN_FILENO
-# define STDIN_FILENO    0
+# define STDIN_FILENO	 0
 #endif
 #ifndef STDOUT_FILENO
-# define STDOUT_FILENO   1
+# define STDOUT_FILENO	 1
 #endif
 #ifndef STDERR_FILENO
-# define STDERR_FILENO   2
+# define STDERR_FILENO	 2
 #endif
 
 #ifndef NGROUPS_MAX	/* Disable groupaccess if NGROUP_MAX is not set */
@@ -132,7 +124,20 @@ enum
 #endif
 
 #if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
-# define O_NONBLOCK      00004	/* Non Blocking Open */
+# define O_NONBLOCK	 00004	/* Non Blocking Open */
+#endif
+
+#if defined(HAVE_DECL_SOCK_NONBLOCK) && HAVE_DECL_SOCK_NONBLOCK == 0
+# define SOCK_NONBLOCK	0x4000	/* Set O_NONBLOCK */
+#endif
+
+#if defined(HAVE_DECL_SOCK_CLOEXEC) && HAVE_DECL_SOCK_CLOEXEC == 0
+# define SOCK_CLOEXEC	0x8000	/* Set FD_CLOEXEC */
+#endif
+
+#if (defined(HAVE_DECL_SOCK_NONBLOCK) && HAVE_DECL_SOCK_NONBLOCK == 0) || \
+    (defined(HAVE_DECL_SOCK_CLOEXEC) && HAVE_DECL_SOCK_CLOEXEC == 0)
+# define SOCK_SETFLAGS	0xf000	/* Set flags as checked above */
 #endif
 
 #ifndef S_ISDIR
@@ -353,8 +358,8 @@ typedef u_int16_t	in_port_t;
 #if defined(BROKEN_SYS_TERMIO_H) && !defined(_STRUCT_WINSIZE)
 #define _STRUCT_WINSIZE
 struct winsize {
-      unsigned short ws_row;          /* rows, in characters */
-      unsigned short ws_col;          /* columns, in character */
+      unsigned short ws_row;	      /* rows, in characters */
+      unsigned short ws_col;	      /* columns, in character */
       unsigned short ws_xpixel;       /* horizontal size, pixels */
       unsigned short ws_ypixel;       /* vertical size, pixels */
 };
@@ -474,7 +479,7 @@ struct sadb_sa_natt {
 #endif
 
 #ifndef roundup
-# define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+# define roundup(x, y)	 ((((x)+((y)-1))/(y))*(y))
 #endif
 
 #ifndef timersub
@@ -490,9 +495,9 @@ struct sadb_sa_natt {
 #endif
 
 #ifndef timespeccmp
-#define timespeccmp(a, b, cmp)			       		\
-	(((a)->tv_sec == (b)->tv_sec) ?			       	\
-	 ((a)->tv_nsec cmp (b)->tv_nsec) :	       		\
+#define timespeccmp(a, b, cmp)					\
+	(((a)->tv_sec == (b)->tv_sec) ?				\
+	 ((a)->tv_nsec cmp (b)->tv_nsec) :			\
 	 ((a)->tv_sec cmp (b)->tv_sec))
 #endif
 
@@ -555,6 +560,7 @@ struct sadb_sa_natt {
 
 #if !defined(HAVE_ATTRIBUTE__BOUNDED__) && !defined(__bounded__)
 # define __bounded__(x, y, z...)
+# define HAVE_ATTRIBUTE__BOUNDED__	/* LibreSSL checks it again */
 #endif
 
 #if !defined(HAVE_ATTRIBUTE__NONNULL__) && !defined(__nonnull__)
@@ -610,7 +616,7 @@ struct sadb_sa_natt {
 #  define LITTLE_ENDIAN  1234
 # endif /* LITTLE_ENDIAN */
 # ifndef BIG_ENDIAN
-#  define BIG_ENDIAN     4321
+#  define BIG_ENDIAN	 4321
 # endif /* BIG_ENDIAN */
 # ifdef WORDS_BIGENDIAN
 #  define BYTE_ORDER BIG_ENDIAN
